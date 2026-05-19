@@ -15,7 +15,7 @@ export async function generateMetadata({
 	// biome-ignore lint/style/noNonNullAssertion: guaranteed by Vercel env
 	const supabase = createClient(
 		process.env.NEXT_PUBLIC_SUPABASE_URL!,
-		process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+		(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!,
 	);
 	const { data } = await supabase
 		.from("plasmid_library")
@@ -40,7 +40,7 @@ export default async function LibraryPlasmidPage({
 	// biome-ignore lint/style/noNonNullAssertion: guaranteed by Vercel env
 	const supabase = createClient(
 		process.env.NEXT_PUBLIC_SUPABASE_URL!,
-		process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+		(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!,
 	);
 
 	// Check auth in parallel with plasmid fetch

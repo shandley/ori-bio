@@ -9,7 +9,7 @@ export async function createClient() {
 		// biome-ignore lint/style/noNonNullAssertion: env vars guaranteed by Vercel
 		process.env.NEXT_PUBLIC_SUPABASE_URL!,
 		// biome-ignore lint/style/noNonNullAssertion: env vars guaranteed by Vercel
-		process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+		(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!,
 		{
 			cookies: {
 				getAll() {
