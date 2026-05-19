@@ -2,8 +2,11 @@ import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
 export async function proxy(request: NextRequest) {
+	const supabaseKey =
+		process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
 	// Skip auth check in dev when Supabase env vars aren't available (e.g. no vercel env pull)
-	if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+	if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !supabaseKey) {
 		return NextResponse.next({ request });
 	}
 
@@ -12,8 +15,7 @@ export async function proxy(request: NextRequest) {
 	const supabase = createServerClient(
 		// biome-ignore lint/style/noNonNullAssertion: env vars guaranteed by Vercel
 		process.env.NEXT_PUBLIC_SUPABASE_URL!,
-		// biome-ignore lint/style/noNonNullAssertion: env vars guaranteed by Vercel
-		process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+		supabaseKey,
 		{
 			cookies: {
 				getAll() {
