@@ -1,6 +1,7 @@
 import { anthropic } from "@ai-sdk/anthropic";
 import { generateText } from "ai";
 import type { NextRequest } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -22,6 +23,14 @@ interface Recommendation {
 }
 
 export async function POST(req: NextRequest) {
+	const supabase = await createClient();
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+	if (!user) {
+		return Response.json({ error: "Unauthorized" }, { status: 401 });
+	}
+
 	const { query, library } = (await req.json()) as {
 		query: string;
 		library: LibraryEntry[];
