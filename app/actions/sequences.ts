@@ -7,6 +7,8 @@ import { createClient } from "@/lib/supabase/server";
 /** Soft-delete: sets deleted_at, does NOT remove storage or the row. */
 export async function deleteSequence(id: string) {
 	const supabase = await createClient();
+	const { data: { user } } = await supabase.auth.getUser();
+	if (!user) return { error: "Not authenticated" };
 	const { error } = await supabase
 		.from("sequences")
 		.update({ deleted_at: new Date().toISOString() })
@@ -20,6 +22,8 @@ export async function deleteSequence(id: string) {
 /** Restore a soft-deleted sequence back to the library. */
 export async function restoreSequence(id: string) {
 	const supabase = await createClient();
+	const { data: { user } } = await supabase.auth.getUser();
+	if (!user) return { error: "Not authenticated" };
 	const { error } = await supabase.from("sequences").update({ deleted_at: null }).eq("id", id);
 	if (error) return { error: error.message };
 	revalidatePath("/dashboard");
@@ -30,6 +34,8 @@ export async function restoreSequence(id: string) {
 /** Permanently delete: removes storage file and the DB row. */
 export async function permanentlyDeleteSequence(id: string) {
 	const supabase = await createClient();
+	const { data: { user } } = await supabase.auth.getUser();
+	if (!user) return { error: "Not authenticated" };
 
 	const { data: rawSeq } = await supabase
 		.from("sequences")
@@ -51,6 +57,8 @@ export async function permanentlyDeleteSequence(id: string) {
 
 export async function updateSequenceName(id: string, name: string) {
 	const supabase = await createClient();
+	const { data: { user } } = await supabase.auth.getUser();
+	if (!user) return { error: "Not authenticated" };
 	const { error } = await supabase.from("sequences").update({ name }).eq("id", id);
 	if (error) return { error: error.message };
 	revalidatePath("/dashboard");
@@ -63,6 +71,8 @@ export async function updateSequenceMetadata(
 	updates: { description?: string; topology?: "circular" | "linear" },
 ) {
 	const supabase = await createClient();
+	const { data: { user } } = await supabase.auth.getUser();
+	if (!user) return { error: "Not authenticated" };
 	const { error } = await supabase.from("sequences").update(updates).eq("id", id);
 	if (error) return { error: error.message };
 	revalidatePath("/dashboard");

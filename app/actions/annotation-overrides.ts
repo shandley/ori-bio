@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function loadAnnotationOverrides(sequenceId: string): Promise<OverrideMap> {
 	const supabase = await createClient();
+	const { data: { user } } = await supabase.auth.getUser();
+	if (!user) return {};
 	const { data } = await supabase
 		.from("sequences")
 		.select("annotation_overrides")
@@ -18,6 +20,8 @@ export async function saveAnnotationOverrides(
 	overrides: OverrideMap,
 ): Promise<{ error?: string }> {
 	const supabase = await createClient();
+	const { data: { user } } = await supabase.auth.getUser();
+	if (!user) return { error: "Not authenticated" };
 	const { error } = await supabase
 		.from("sequences")
 		// biome-ignore lint/suspicious/noExplicitAny: OverrideMap is a valid JSON object; Supabase Json type is too narrow
