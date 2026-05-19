@@ -5,11 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 /** 8-char URL-safe token, avoids ambiguous characters (0/O, I/l/1) */
 function generateToken(): string {
 	const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
-	let token = "";
-	for (let i = 0; i < 8; i++) {
-		token += chars[Math.floor(Math.random() * chars.length)];
-	}
-	return token;
+	const bytes = new Uint8Array(8);
+	crypto.getRandomValues(bytes);
+	return Array.from(bytes, (b) => chars[b % chars.length]).join("");
 }
 
 export interface ShareResult {
