@@ -110,7 +110,7 @@ export async function deleteAccount(): Promise<{ error: string } | never> {
 
 	// 1. Fail fast — verify service key before touching any data
 	const adminUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-	const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+	const serviceKey = process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
 	if (!serviceKey) return { error: "Server configuration error. Contact support." };
 
 	const admin = createAdminClient(adminUrl, serviceKey, {

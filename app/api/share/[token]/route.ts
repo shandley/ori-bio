@@ -10,7 +10,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
 		// biome-ignore lint/style/noNonNullAssertion: guaranteed by Vercel env
 		process.env.NEXT_PUBLIC_SUPABASE_URL!,
 		// biome-ignore lint/style/noNonNullAssertion: guaranteed by Vercel env
-		process.env.SUPABASE_SERVICE_ROLE_KEY!,
+		(process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY)!,
 		{ auth: { autoRefreshToken: false, persistSession: false } },
 	);
 
