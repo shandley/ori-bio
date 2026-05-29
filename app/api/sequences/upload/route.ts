@@ -80,7 +80,8 @@ export async function POST(request: Request) {
 	const length = extractLength(content, format);
 	const gcContent = computeGC(content, format);
 
-	const filePath = `${user.id}/${Date.now()}_${file.name}`;
+	const safeFilename = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+	const filePath = `${user.id}/${Date.now()}_${safeFilename}`;
 	const { error: storageError } = await supabase.storage
 		.from("sequences")
 		.upload(filePath, file, { contentType: "text/plain" });

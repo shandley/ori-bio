@@ -6,16 +6,6 @@ import { createClient } from "@/lib/supabase/server";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-interface LibraryEntry {
-	slug: string;
-	name: string;
-	description: string;
-	categories: string[];
-	key_features: string[];
-	length: number;
-	topology: string;
-}
-
 interface Recommendation {
 	slug: string;
 	name: string;
@@ -31,17 +21,23 @@ export async function POST(req: NextRequest) {
 		return Response.json({ error: "Unauthorized" }, { status: 401 });
 	}
 
-	const { query, library } = (await req.json()) as {
-		query: string;
-		library: LibraryEntry[];
-	};
+	const { query } = (await req.json()) as { query: string };
 
-	if (!query?.trim() || !library?.length) {
+	if (!query?.trim()) {
 		return Response.json({ recommendations: [] });
 	}
 
-	// Compact library representation for the prompt
-	const libraryText = library
+	// Fetch library from the database server-side — never trust client-provided library data.
+	// This prevents prompt injection via crafted library entries in the request body.
+	const { data: plasmids } = await supabase
+		.from("plasmid_library")
+		.select("slug, name, description, categories, key_features, length, topology");
+
+	if (!plasmids?.length) {
+		return Response.json({ recommendations: [] });
+	}
+
+	const libraryText = plasmids
 		.map(
 			(p) =>
 				`${p.slug} | ${p.name} | ${p.topology} ${p.length}bp | ${p.categories.join(",")} | features: ${p.key_features.join(",")}`,
@@ -68,7 +64,6 @@ Rules:
 
 	let recommendations: Recommendation[] = [];
 	try {
-		// Extract JSON from the response (handle markdown code blocks if present)
 		const jsonMatch = text.match(/\{[\s\S]*\}/);
 		if (jsonMatch) {
 			const parsed = JSON.parse(jsonMatch[0]) as { recommendations: Recommendation[] };

@@ -266,18 +266,7 @@ function AIPanel({ library, onClose }: { library: LibraryPlasmid[]; onClose: () 
 			const res = await fetch("/api/library-search", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					query,
-					library: library.map((p) => ({
-						slug: p.slug,
-						name: p.name,
-						description: p.description,
-						categories: p.categories,
-						key_features: p.key_features,
-						length: p.length,
-						topology: p.topology,
-					})),
-				}),
+				body: JSON.stringify({ query }),
 			});
 			if (!res.ok) throw new Error(`${res.status}`);
 			const data = (await res.json()) as { recommendations: AIRecommendation[] };
