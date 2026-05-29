@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
-import { login, signInWithGoogle } from "@/app/actions/auth";
+import { login } from "@/app/actions/auth";
 
 function GoogleIcon() {
 	return (
@@ -34,7 +34,9 @@ const URL_ERROR_MESSAGES: Record<string, string> = {
 	otp_expired: "That confirmation link has expired. Please sign up again to get a new one.",
 	access_denied: "That confirmation link is no longer valid. Please sign up again.",
 	oauth_failed:
-		"Google sign-in failed. If you're on a university VPN, try disconnecting — some network filters block the authentication redirect.",
+		"Google sign-in could not start. If you're on a university VPN, try disconnecting first.",
+	oauth_exchange_failed:
+		"Google sign-in was interrupted. Please try again — if the problem persists, use email/password login.",
 };
 
 const inputStyle: React.CSSProperties = {
@@ -119,41 +121,40 @@ function LoginForm() {
 				</p>
 			</div>
 
-			{/* Google OAuth */}
-			<form action={signInWithGoogle} style={{ marginBottom: "20px" }}>
-				<button
-					type="submit"
-					style={{
-						width: "100%",
-						display: "flex",
-						alignItems: "center",
-						justifyContent: "center",
-						gap: "10px",
-						padding: "11px 16px",
-						background: "#ffffff",
-						border: "1px solid #ddd8ce",
-						borderRadius: "4px",
-						cursor: "pointer",
-						fontFamily: "var(--font-karla)",
-						fontSize: "14px",
-						fontWeight: 500,
-						color: "#1c1a16",
-						letterSpacing: "0.01em",
-						transition: "border-color 0.15s, background 0.15s",
-					}}
-					onMouseEnter={(e) => {
-						(e.currentTarget as HTMLButtonElement).style.borderColor = "#9a9284";
-						(e.currentTarget as HTMLButtonElement).style.background = "#f5f0e8";
-					}}
-					onMouseLeave={(e) => {
-						(e.currentTarget as HTMLButtonElement).style.borderColor = "#ddd8ce";
-						(e.currentTarget as HTMLButtonElement).style.background = "#ffffff";
-					}}
-				>
-					<GoogleIcon />
-					Continue with Google
-				</button>
-			</form>
+			{/* Google OAuth — link to route handler so PKCE cookie is set on the 302 */}
+			<a
+				href="/api/auth/google"
+				style={{
+					display: "flex",
+					alignItems: "center",
+					justifyContent: "center",
+					gap: "10px",
+					padding: "11px 16px",
+					marginBottom: "20px",
+					background: "#ffffff",
+					border: "1px solid #ddd8ce",
+					borderRadius: "4px",
+					cursor: "pointer",
+					fontFamily: "var(--font-karla)",
+					fontSize: "14px",
+					fontWeight: 500,
+					color: "#1c1a16",
+					letterSpacing: "0.01em",
+					textDecoration: "none",
+					transition: "border-color 0.15s, background 0.15s",
+				}}
+				onMouseEnter={(e) => {
+					(e.currentTarget as HTMLAnchorElement).style.borderColor = "#9a9284";
+					(e.currentTarget as HTMLAnchorElement).style.background = "#f5f0e8";
+				}}
+				onMouseLeave={(e) => {
+					(e.currentTarget as HTMLAnchorElement).style.borderColor = "#ddd8ce";
+					(e.currentTarget as HTMLAnchorElement).style.background = "#ffffff";
+				}}
+			>
+				<GoogleIcon />
+				Continue with Google
+			</a>
 
 			{/* Divider */}
 			<div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>

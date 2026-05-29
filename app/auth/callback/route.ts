@@ -19,6 +19,10 @@ export async function GET(request: Request) {
 		if (!error) {
 			return NextResponse.redirect(`${origin}${next}`);
 		}
+		console.error("[auth/callback] exchangeCodeForSession failed:", error.message, error.code ?? "");
+		// Use a distinct error key so the login page can show a targeted message
+		// rather than the generic "confirmation link expired" text.
+		return NextResponse.redirect(`${origin}/login?error=oauth_exchange_failed`);
 	}
 
 	return NextResponse.redirect(`${origin}/login?error=confirmation_failed`);
