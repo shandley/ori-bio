@@ -16,6 +16,7 @@ const NAV: ReadonlyArray<NavItem> = [
 	{ href: "/primers", label: "Primers", activeOn: "/primers" },
 	{ href: "/sanger", label: "Sanger", activeOn: "/sanger" },
 	{ href: "/crispr", label: "CRISPR", activeOn: "/crispr" },
+	{ href: "/sequencing", label: "Sequencing", activeOn: "/sequencing" },
 	{ href: "https://github.com/shandley/ori-bio", label: "GitHub", activeOn: null, external: true },
 ];
 
