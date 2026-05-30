@@ -1,7 +1,16 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { type Codon, estimateMW, extractCDS, translateCodons } from "@/lib/bio/translate";
+import {
+	type Codon,
+	computeExtinctionCoefficient,
+	computeGRAVY,
+	computePI,
+	estimateMW,
+	extractCDS,
+	translate,
+	translateCodons,
+} from "@/lib/bio/translate";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -109,6 +118,13 @@ export function TranslationView({ seq, target, onClose, onDesignPrimers }: Trans
 	const mw = estimateMW(codons);
 	const hasStop = codons.at(-1)?.aa === "*";
 
+	// Protein properties — only meaningful at ≥ 5 residues
+	const protein = translate(nt);
+	const showProps = residues.length >= 5;
+	const pI  = showProps ? computePI(protein) : null;
+	const eps = showProps ? computeExtinctionCoefficient(protein) : null;
+	const gravy = showProps ? computeGRAVY(protein) : null;
+
 	// Scroll to start on open
 	// biome-ignore lint/correctness/useExhaustiveDependencies: scroll on target identity change, not deep equality
 	useEffect(() => {
@@ -124,7 +140,7 @@ export function TranslationView({ seq, target, onClose, onDesignPrimers }: Trans
 				flexShrink: 0,
 				borderTop: "2px solid #c8c0b8",
 				background: "#faf7f2",
-				height: "136px",
+				height: showProps ? "158px" : "136px",
 				display: "flex",
 				flexDirection: "column",
 				overflow: "hidden",
@@ -236,6 +252,42 @@ export function TranslationView({ seq, target, onClose, onDesignPrimers }: Trans
 					×
 				</button>
 			</div>
+
+			{/* Protein properties row — pI · ε280 · GRAVY (order: alphabetical by symbol) */}
+			{showProps && pI !== null && eps !== null && gravy !== null && (
+				<div
+					style={{
+						display: "flex",
+						alignItems: "center",
+						gap: "16px",
+						padding: "3px 14px",
+						borderBottom: "1px solid #ece6d8",
+						background: "#f5f0e8",
+						flexShrink: 0,
+					}}
+				>
+					<span
+						style={{ fontFamily: "var(--font-courier)", fontSize: "8px", color: "#9a9284", letterSpacing: "0.04em" }}
+					>
+						PROPERTIES
+					</span>
+					{[
+						{ label: "pI", value: pI.toFixed(1) },
+						{ label: "ε280", value: `${eps.toLocaleString()} M⁻¹cm⁻¹`, title: "Extinction coefficient at 280 nm (reduced Cys; Pace et al. 1995)" },
+						{ label: "GRAVY", value: gravy.toFixed(2), title: "Grand Average of Hydropathicity (Kyte & Doolittle, 1982)" },
+					].map(({ label, value, title }) => (
+						<span key={label} title={title} style={{ display: "flex", gap: "4px", alignItems: "baseline" }}>
+							<span style={{ fontFamily: "var(--font-courier)", fontSize: "7.5px", color: "#9a9284" }}>{label}</span>
+							<span style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: "#1c1a16", fontWeight: 600 }}>{value}</span>
+						</span>
+					))}
+					{eps === 0 && (
+						<span style={{ fontFamily: "var(--font-courier)", fontSize: "7.5px", color: "#b8933a" }}>
+							ε280 = 0: no Trp or Tyr
+						</span>
+					)}
+				</div>
+			)}
 
 			{/* Codon scroll area */}
 			<div

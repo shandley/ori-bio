@@ -176,6 +176,93 @@ export function translate(dna: string, readThrough = false): string {
 	return protein;
 }
 
+// ── Protein properties ────────────────────────────────────────────────────────
+
+// Kyte-Doolittle hydropathy scale (GRAVY).
+const KD: Record<string, number> = {
+	A: 1.8,  R: -4.5, N: -3.5, D: -3.5, C: 2.5,  Q: -3.5, E: -3.5,
+	G: -0.4, H: -3.2, I: 4.5,  L: 3.8,  K: -3.9, M: 1.9,  F: 2.8,
+	P: -1.6, S: -0.8, T: -0.7, W: -0.9, Y: -1.3, V: 4.2,
+};
+
+/**
+ * Grand Average of Hydropathicity (GRAVY). Kyte & Doolittle, 1982.
+ * Stop codons are excluded. Returns 0 for empty sequences.
+ */
+export function computeGRAVY(protein: string): number {
+	const residues = protein.split("").filter((aa) => aa !== "*" && aa !== "X");
+	if (residues.length === 0) return 0;
+	const sum = residues.reduce((s, aa) => s + (KD[aa] ?? 0), 0);
+	return sum / residues.length;
+}
+
+/**
+ * Extinction coefficient at 280 nm (M⁻¹·cm⁻¹), reduced cysteines.
+ * Pace et al. 1995: ε = 5500·nTrp + 1490·nTyr.
+ * Cysteine contributes 125 per residue only when forming disulfide bonds;
+ * this function assumes the fully reduced form (Cys = 0).
+ */
+export function computeExtinctionCoefficient(protein: string): number {
+	let nW = 0;
+	let nY = 0;
+	for (const aa of protein) {
+		if (aa === "W") nW++;
+		else if (aa === "Y") nY++;
+	}
+	return 5500 * nW + 1490 * nY;
+}
+
+// pKa table (ExPASy ProtParam values).
+const PKA = {
+	nTerm: 8.0,
+	cTerm: 3.1,
+	D: 3.65,
+	E: 4.25,
+	C: 8.18,
+	Y: 10.0,
+	H: 6.0,
+	K: 10.53,
+	R: 12.48,
+};
+
+/**
+ * Theoretical isoelectric point (pI) by bisection.
+ * Uses ExPASy pKa table. Accurate to ±0.01 after 50 iterations.
+ * Returns NaN for empty sequences.
+ */
+export function computePI(protein: string): number {
+	const residues = protein.split("").filter((aa) => aa !== "*");
+	if (residues.length === 0) return Number.NaN;
+
+	const count = (aa: string) => residues.filter((r) => r === aa).length;
+	const nD = count("D"), nE = count("E"), nC = count("C");
+	const nY = count("Y"), nH = count("H"), nK = count("K"), nR = count("R");
+
+	const netCharge = (pH: number): number => {
+		const pos = (pKa: number, n: number) => n / (1 + 10 ** (pH - pKa));
+		const neg = (pKa: number, n: number) => -n / (1 + 10 ** (pKa - pH));
+		return (
+			pos(PKA.nTerm, 1) +
+			pos(PKA.H, nH) +
+			pos(PKA.K, nK) +
+			pos(PKA.R, nR) +
+			neg(PKA.cTerm, 1) +
+			neg(PKA.D, nD) +
+			neg(PKA.E, nE) +
+			neg(PKA.C, nC) +
+			neg(PKA.Y, nY)
+		);
+	};
+
+	let lo = 0, hi = 14;
+	for (let i = 0; i < 50; i++) {
+		const mid = (lo + hi) / 2;
+		if (netCharge(mid) > 0) lo = mid;
+		else hi = mid;
+	}
+	return (lo + hi) / 2;
+}
+
 /**
  * Format a protein string for display: groups of 10 aa separated by spaces,
  * with position numbers on the left every 50 aa.
