@@ -35,7 +35,7 @@ const FEATURE_COLORS: Record<string, string> = {
 	transit_peptide: "#FFC569",
 };
 
-function parseLocation(raw: string): { start: number; end: number; direction: 1 | -1 } | null {
+export function parseLocation(raw: string): { start: number; end: number; direction: 1 | -1 } | null {
 	const isComplement = raw.includes("complement");
 	const isJoin = raw.includes("join") || raw.includes("order");
 	// Strip all operators — we just want the numeric positions
