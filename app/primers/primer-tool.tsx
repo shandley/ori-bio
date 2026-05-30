@@ -75,10 +75,9 @@ const POLYMERASE_OFFSET: Record<Polymerase, number> = {
 	Custom: 0,
 };
 
-// Demo sequence shown by the "Load example" affordance on the Sequence input.
-// EGFP CDS (720 bp), a near-universal demo target in molecular biology.
-const EXAMPLE_FASTA = `>EGFP enhanced green fluorescent protein (720 bp)
-ATGGTGAGCAAGGGCGAGGAGCTGTTCACCGGGGTGGTGCCCATCCTGGTCGAGCTGGAC
+// Demo sequences for the "Load example" affordances on each mode's input.
+// EGFP (720 bp) is the near-universal molecular biology demo target.
+const EGFP_CDS_720 = `ATGGTGAGCAAGGGCGAGGAGCTGTTCACCGGGGTGGTGCCCATCCTGGTCGAGCTGGAC
 GGCGACGTAAACGGCCACAAGTTCAGCGTGTCCGGCGAGGGCGAGGGCGATGCCACCTAC
 GGCAAGCTGACCCTGAAGTTCATCTGCACCACCGGCAAGCTGCCCGTGCCCTGGCCCACC
 CTCGTGACCACCCTGACCTACGGCGTGCAGTGCTTCAGCCGCTACCCCGACCACATGAAG
@@ -89,7 +88,76 @@ AAGCTGGAGTACAACTACAACAGCCACAACGTCTATATCATGGCCGACAAGCAGAAGAAC
 GGCATCAAGGTGAACTTCAAGATCCGCCACAACATCGAGGACGGCAGCGTGCAGCTCGCC
 GACCACTACCAGCAGAACACCCCCATCGGCGACGGCCCCGTGCTGCTGCCCGACAACCAC
 TACCTGAGCACCCAGTCCGCCCTGAGCAAAGACCCCAACGAGAAGCGCGATCACATGGTC
-CTGCTGGAGTTCGTGACCGCCGCCGGGATCACTCTCGGCATGGACGAGCTGTACAAGTAA
+CTGCTGGAGTTCGTGACCGCCGCCGGGATCACTCTCGGCATGGACGAGCTGTACAAGTAA`;
+
+// mVenus CDS trimmed to 720 bp to match EGFP length for the conservation aligner,
+// which requires equal-length sequences. ~80% nucleotide identity with EGFP —
+// enough conservation to find consensus primer sites at the 5' and 3' ends,
+// enough variation in the middle to make degenerate-primer design interesting.
+const MVENUS_CDS_720 = `ATGGTGAGCAAAGGCGAAGAACTGTTTACCGGCGTGGTGCCGATTCTGGTGGAACTGGAT
+GGCGATGTGAACGGCCATAAATTTAGCGTGAGCGGCGAAGGCGAAGGCGATGCGACCTAT
+GGCAAACTGACCCTGAAACTGATTTGCACCACCGGCAAACTGCCGGTGCCGTGGCCGACC
+CTGGTGACCACCCTGGGCTATGGCCTGCAATGCTTTGCGCGCTATCCGGATCATATGAAA
+CAGCATGATTTTTTTAAAAGCGCGATGCCGGAAGGCTATGTGCAGGAACGCACCATTTTT
+TTTAAAGATGATGGCAACTATAAAACCCGCGCGGAAGTGAAATTTGAAGGCGATACCCTG
+GTGAACCGCATTGAACTGAAAGGCATTGATTTTAAAGAAGATGGCAACATTCTGGGCCAT
+AAACTGGAATATAACTATAACAGCCATAACGTGTATATTACCGCGGATAAACAGAAAAAC
+GGCATTAAAGCGAACTTTAAAATTCGCCATAACATTGAAGATGGCGGCGTGCAGCTGGCG
+GATCATTATCAGCAGAACACCCCGATTGGCGATGGCCCGGTGCTGCTGCCGGATAACCAT
+TATCTGAGCTATCAGAGCGCGCTGAGCAAAGATCCGAACGAAAAACGCGATCATATGGTG
+CTGCTGGAATTTGTGACCGCGGCGGGCATTACCCTGGGCATGGATGAACTGTATAAATAA`;
+
+// AmpR coding region with shared upstream promoter trimmed (857 bp). Pairing
+// with KanR for multiplex demos required removing the ~110 bp shared bla/aph
+// promoter that would otherwise produce cross-reactive primer pairs.
+const AMPR_CDS_857 = `GTATTCAACATTTCCGTGTCGCCCTTATTCCCTTTTTTGCGGCATTTTGCCTTCCTGTTT
+TTGCTCACCCAGAAACGCTGGTGAAAGTAAAAGATGCTGAAGATCAGTTGGGTGCACGAG
+TGGGTTACATCGAACTGGATCTCAACAGCGGTAAGATCCTTGAGAGTTTTCGCCCCGAAG
+AACGTTTTCCAATGATGAGCACTTTTAAAGTTCTGCTATGTGGCGCGGTATTATCCCGTG
+TTGACGCCGGGCAAGAGCAACTCGGTCGCCGCATACACTATTCTCAGAATGACTTGGTTG
+AGTACTCACCAGTCACAGAAAAGCATCTTACGGATGGCATGACAGTAAGAGAATTATGCA
+GTGCTGCCATAACCATGAGTGATAACACTGCGGCCAACTTACTTCTGACAACGATCGGAG
+GACCGAAGGAGCTAACCGCTTTTTTGCACAACATGGGGGATCATGTAACTCGCCTTGATC
+GTTGGGAACCGGAGCTGAATGAAGCCATACCAAACGACGAGCGTGACACCACGATGCCTG
+CAGCAATGGCAACAACGTTGCGCAAACTATTAACTGGCGAACTACTTACTCTAGCTTCCC
+GGCAACAATTAATAGACTGGATGGAGGCGGATAAAGTTGCAGGACCACTTCTGCGCTCGG
+CCCTTCCGGCTGGCTGGTTTATTGCTGATAAATCTGGAGCCGGTGAGCGTGGGTCTCGCG
+GTATCATTGCAGCACTGGGGCCAGATGGTAAGCCCTCCCGTATCGTAGTTATCTACACGA
+CGGGGAGTCAGGCAACTATGGATGAACGAAATAGACAGATCGCTGAGATAGGTGCCTCAC
+TGATTAAGCATTGGTAA`;
+
+// KanR coding region with shared upstream promoter trimmed (812 bp).
+const KANR_CDS_812 = `GCCATATTCAACGGGAAACGTCTTGCTCGAGGCCGCGATTAAATTCCAACATGGATGCTG
+ATTTATATGGGTATAAATGGGCTCGCGATAATGTCGGGCAATCAGGTGCGACAATCTATC
+GATTGTATGGGAAGCCCGATGCGCCAGAGTTGTTTCTGAAACATGGCAAAGGTAGCGTTG
+CCAATGATGTTACAGATGAGATGGTCAGGCTAAACTGGCTGACGGAATTTATGCCTCTTC
+CGACCATCAAGCATTTTATCCGTACTCCTGATGATGCATGGTTACTCACCACTGCGATCC
+CAGGGAAAACAGCATTCCAGGTATTAGAAGAATATCCTGATTCAGGTGAAAATATTGTTG
+ATGCGCTGGCAGTGTTCCTGCGCCGGTTGCATTCGATTCCTGTTTGTAATTGTCCTTTTA
+ACGGCGATCGCGTATTTCGTCTCGCTCAGGCGCAATCACGAATGAATAACGGTTTGGTTG
+GTGCGAGTGATTTTGATGACGAGCGTAATGGCTGGCCTGTTGAACAAGTCTGGAAAGAAA
+TGCATAAGCTTTTGCCATTCTCACCGGATTCAGTCGTCACTCATGGTGATTTCTCACTTG
+ATAACCTTATTTTTGACGAGGGGAAATTAATAGGTTGTATTGATGTTGGACGAGTCGGAA
+TCGCAGACCGATACCAGGATCTTGCCATCCTATGGAACTGCCTCGGTGAGTTTTCTCCTT
+CATTACAGAAACGGCTTTTTCAAAAATATGGTATTGATAATCCTGATATGAATAAATTGC
+AGTTTCACTTGATGCTCGATGAGTTTTTCTGA`;
+
+const EXAMPLE_FASTA = `>EGFP enhanced green fluorescent protein (720 bp)
+${EGFP_CDS_720}
+`;
+
+const EXAMPLE_ALIGNMENT_FASTA = `>EGFP_CDS enhanced green fluorescent protein (720 bp)
+${EGFP_CDS_720}
+>mVenus_CDS enhanced yellow fluorescent protein, trimmed (720 bp, ~80% identity)
+${MVENUS_CDS_720}
+`;
+
+const EXAMPLE_MULTIPLEX_FASTA = `>AmpR beta-lactamase coding region (857 bp)
+${AMPR_CDS_857}
+>KanR neomycin phosphotransferase II coding region (812 bp)
+${KANR_CDS_812}
+>EGFP enhanced green fluorescent protein (720 bp)
+${EGFP_CDS_720}
 `;
 
 function computeTa(lowerTm: number, poly: Polymerase): number {
@@ -1685,7 +1753,34 @@ export function PrimerTool() {
 						{/* Multiplex targets input */}
 						{mode === "multiplex" && (
 							<div>
-								<label style={labelStyle}>Target sequences (multi-FASTA)</label>
+								<div
+									style={{
+										display: "flex",
+										alignItems: "baseline",
+										justifyContent: "space-between",
+									}}
+								>
+									<label style={labelStyle}>Target sequences (multi-FASTA)</label>
+									<button
+										type="button"
+										onClick={() => setMultiplexTargets(EXAMPLE_MULTIPLEX_FASTA)}
+										style={{
+											fontFamily: "var(--font-courier)",
+											fontSize: "9px",
+											letterSpacing: "0.1em",
+											textTransform: "uppercase",
+											color: "#1a4731",
+											background: "none",
+											border: "none",
+											cursor: "pointer",
+											padding: 0,
+											marginBottom: "5px",
+										}}
+										title="Load AmpR + KanR + EGFP as three multiplex targets"
+									>
+										Load example →
+									</button>
+								</div>
 								<textarea
 									value={multiplexTargets}
 									onChange={(e) => setMultiplexTargets(e.target.value)}
@@ -1722,7 +1817,34 @@ export function PrimerTool() {
 						{/* Alignment input — consensus mode only */}
 						{mode === "consensus" && (
 							<div>
-								<label style={labelStyle}>Alignment (multi-FASTA)</label>
+								<div
+									style={{
+										display: "flex",
+										alignItems: "baseline",
+										justifyContent: "space-between",
+									}}
+								>
+									<label style={labelStyle}>Alignment (multi-FASTA)</label>
+									<button
+										type="button"
+										onClick={() => setAlignmentRaw(EXAMPLE_ALIGNMENT_FASTA)}
+										style={{
+											fontFamily: "var(--font-courier)",
+											fontSize: "9px",
+											letterSpacing: "0.1em",
+											textTransform: "uppercase",
+											color: "#1a4731",
+											background: "none",
+											border: "none",
+											cursor: "pointer",
+											padding: 0,
+											marginBottom: "5px",
+										}}
+										title="Load EGFP + mVenus alignment (720 bp, ~80% identity)"
+									>
+										Load example →
+									</button>
+								</div>
 								<textarea
 									value={alignmentRaw}
 									onChange={(e) => setAlignmentRaw(e.target.value)}
