@@ -52,6 +52,25 @@ const FLAG_TITLES: Record<GuideFlag, string> = {
 	missingContext: "Guide near sequence edge — RS1 score uses N-padded context",
 };
 
+// Demo target for the "Load example" affordance. EGFP CDS (720 bp) is the
+// canonical CRISPR demo target — widely used for knockout/knock-in experiments,
+// and rich in NGG PAM sites for the default SpCas9 variant. Cas12a (TTTV PAM)
+// yields fewer guides because EGFP is GC-rich; that's a real result, not a bug.
+const EXAMPLE_TARGET_FASTA = `>EGFP enhanced green fluorescent protein (720 bp)
+ATGGTGAGCAAGGGCGAGGAGCTGTTCACCGGGGTGGTGCCCATCCTGGTCGAGCTGGAC
+GGCGACGTAAACGGCCACAAGTTCAGCGTGTCCGGCGAGGGCGAGGGCGATGCCACCTAC
+GGCAAGCTGACCCTGAAGTTCATCTGCACCACCGGCAAGCTGCCCGTGCCCTGGCCCACC
+CTCGTGACCACCCTGACCTACGGCGTGCAGTGCTTCAGCCGCTACCCCGACCACATGAAG
+CAGCACGACTTCTTCAAGTCCGCCATGCCCGAAGGCTACGTCCAGGAGCGCACCATCTTC
+TTCAAGGACGACGGCAACTACAAGACCCGCGCCGAGGTGAAGTTCGAGGGCGACACCCTG
+GTGAACCGCATCGAGCTGAAGGGCATCGACTTCAAGGAGGACGGCAACATCCTGGGGCAC
+AAGCTGGAGTACAACTACAACAGCCACAACGTCTATATCATGGCCGACAAGCAGAAGAAC
+GGCATCAAGGTGAACTTCAAGATCCGCCACAACATCGAGGACGGCAGCGTGCAGCTCGCC
+GACCACTACCAGCAGAACACCCCCATCGGCGACGGCCCCGTGCTGCTGCCCGACAACCAC
+TACCTGAGCACCCAGTCCGCCCTGAGCAAAGACCCCAACGAGAAGCGCGATCACATGGTC
+CTGCTGGAGTTCGTGACCGCCGCCGGGATCACTCTCGGCATGGACGAGCTGTACAAGTAA
+`;
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function parseFasta(text: string): { name: string; sequence: string } | null {
@@ -816,6 +835,19 @@ export function CrisprTool() {
 											}}
 										>
 											Upload file
+										</button>
+										<button
+											type="button"
+											onClick={() => applyTargetText(EXAMPLE_TARGET_FASTA)}
+											style={{
+												...btnStyle,
+												background: "none",
+												border: "1px solid #ddd8ce",
+												color: "#1a4731",
+											}}
+											title="Load EGFP CDS (720 bp) as a demo target"
+										>
+											Load example
 										</button>
 										<input
 											ref={fileInputRef}
