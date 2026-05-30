@@ -77,7 +77,7 @@ function sub(a: string, b: string): number {
  * Compute the Smith-Waterman local alignment matrix and return the traceback
  * starting from the maximum-score cell.
  */
-function smithWaterman(
+export function smithWaterman(
 	query: string,
 	ref: string,
 ): { refStart: number; refEnd: number; queryStart: number; queryEnd: number;
@@ -168,7 +168,7 @@ function smithWaterman(
 
 // ── Mismatch extraction ───────────────────────────────────────────────────────
 
-function extractMismatches(
+export function extractMismatches(
 	refAligned:   string,
 	queryAligned: string,
 	refStart:     number,
