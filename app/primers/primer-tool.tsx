@@ -75,6 +75,23 @@ const POLYMERASE_OFFSET: Record<Polymerase, number> = {
 	Custom: 0,
 };
 
+// Demo sequence shown by the "Load example" affordance on the Sequence input.
+// EGFP CDS (720 bp), a near-universal demo target in molecular biology.
+const EXAMPLE_FASTA = `>EGFP enhanced green fluorescent protein (720 bp)
+ATGGTGAGCAAGGGCGAGGAGCTGTTCACCGGGGTGGTGCCCATCCTGGTCGAGCTGGAC
+GGCGACGTAAACGGCCACAAGTTCAGCGTGTCCGGCGAGGGCGAGGGCGATGCCACCTAC
+GGCAAGCTGACCCTGAAGTTCATCTGCACCACCGGCAAGCTGCCCGTGCCCTGGCCCACC
+CTCGTGACCACCCTGACCTACGGCGTGCAGTGCTTCAGCCGCTACCCCGACCACATGAAG
+CAGCACGACTTCTTCAAGTCCGCCATGCCCGAAGGCTACGTCCAGGAGCGCACCATCTTC
+TTCAAGGACGACGGCAACTACAAGACCCGCGCCGAGGTGAAGTTCGAGGGCGACACCCTG
+GTGAACCGCATCGAGCTGAAGGGCATCGACTTCAAGGAGGACGGCAACATCCTGGGGCAC
+AAGCTGGAGTACAACTACAACAGCCACAACGTCTATATCATGGCCGACAAGCAGAAGAAC
+GGCATCAAGGTGAACTTCAAGATCCGCCACAACATCGAGGACGGCAGCGTGCAGCTCGCC
+GACCACTACCAGCAGAACACCCCCATCGGCGACGGCCCCGTGCTGCTGCCCGACAACCAC
+TACCTGAGCACCCAGTCCGCCCTGAGCAAAGACCCCAACGAGAAGCGCGATCACATGGTC
+CTGCTGGAGTTCGTGACCGCCGCCGGGATCACTCTCGGCATGGACGAGCTGTACAAGTAA
+`;
+
 function computeTa(lowerTm: number, poly: Polymerase): number {
 	return lowerTm + POLYMERASE_OFFSET[poly];
 }
@@ -1608,7 +1625,34 @@ export function PrimerTool() {
 						{/* Sequence input — hidden in consensus and multiplex modes */}
 						{mode !== "consensus" && mode !== "multiplex" && (
 							<div>
-								<label style={labelStyle}>Sequence</label>
+								<div
+									style={{
+										display: "flex",
+										alignItems: "baseline",
+										justifyContent: "space-between",
+									}}
+								>
+									<label style={labelStyle}>Sequence</label>
+									<button
+										type="button"
+										onClick={() => setRawSeq(EXAMPLE_FASTA)}
+										style={{
+											fontFamily: "var(--font-courier)",
+											fontSize: "9px",
+											letterSpacing: "0.1em",
+											textTransform: "uppercase",
+											color: "#1a4731",
+											background: "none",
+											border: "none",
+											cursor: "pointer",
+											padding: 0,
+											marginBottom: "5px",
+										}}
+										title="Load EGFP CDS as a demo sequence"
+									>
+										Load example →
+									</button>
+								</div>
 								<textarea
 									value={rawSeq}
 									onChange={(e) => setRawSeq(e.target.value)}
