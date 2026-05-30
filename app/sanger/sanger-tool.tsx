@@ -87,6 +87,50 @@ const VERDICT_CONFIG: Record<
 	},
 };
 
+// ── Demo data ─────────────────────────────────────────────────────────────────
+// Loaded by the "Load example" affordance on the Reference panel.
+// Reference: EGFP CDS (720 bp). Reads: a forward read of positions 1–450
+// and a reverse-strand read covering positions 280–720 (reverse-complement).
+// Realistic two-primer Sanger setup; together the reads achieve full coverage
+// and produce a CONFIRMED verdict if the user runs clone verification.
+
+const EXAMPLE_REF_FASTA = `>EGFP enhanced green fluorescent protein (720 bp)
+ATGGTGAGCAAGGGCGAGGAGCTGTTCACCGGGGTGGTGCCCATCCTGGTCGAGCTGGAC
+GGCGACGTAAACGGCCACAAGTTCAGCGTGTCCGGCGAGGGCGAGGGCGATGCCACCTAC
+GGCAAGCTGACCCTGAAGTTCATCTGCACCACCGGCAAGCTGCCCGTGCCCTGGCCCACC
+CTCGTGACCACCCTGACCTACGGCGTGCAGTGCTTCAGCCGCTACCCCGACCACATGAAG
+CAGCACGACTTCTTCAAGTCCGCCATGCCCGAAGGCTACGTCCAGGAGCGCACCATCTTC
+TTCAAGGACGACGGCAACTACAAGACCCGCGCCGAGGTGAAGTTCGAGGGCGACACCCTG
+GTGAACCGCATCGAGCTGAAGGGCATCGACTTCAAGGAGGACGGCAACATCCTGGGGCAC
+AAGCTGGAGTACAACTACAACAGCCACAACGTCTATATCATGGCCGACAAGCAGAAGAAC
+GGCATCAAGGTGAACTTCAAGATCCGCCACAACATCGAGGACGGCAGCGTGCAGCTCGCC
+GACCACTACCAGCAGAACACCCCCATCGGCGACGGCCCCGTGCTGCTGCCCGACAACCAC
+TACCTGAGCACCCAGTCCGCCCTGAGCAAAGACCCCAACGAGAAGCGCGATCACATGGTC
+CTGCTGGAGTTCGTGACCGCCGCCGGGATCACTCTCGGCATGGACGAGCTGTACAAGTAA
+`;
+
+const EXAMPLE_FWD_READ_FASTA = `>EGFP_fwd_M13F EGFP forward read (450 bp)
+ATGGTGAGCAAGGGCGAGGAGCTGTTCACCGGGGTGGTGCCCATCCTGGTCGAGCTGGAC
+GGCGACGTAAACGGCCACAAGTTCAGCGTGTCCGGCGAGGGCGAGGGCGATGCCACCTAC
+GGCAAGCTGACCCTGAAGTTCATCTGCACCACCGGCAAGCTGCCCGTGCCCTGGCCCACC
+CTCGTGACCACCCTGACCTACGGCGTGCAGTGCTTCAGCCGCTACCCCGACCACATGAAG
+CAGCACGACTTCTTCAAGTCCGCCATGCCCGAAGGCTACGTCCAGGAGCGCACCATCTTC
+TTCAAGGACGACGGCAACTACAAGACCCGCGCCGAGGTGAAGTTCGAGGGCGACACCCTG
+GTGAACCGCATCGAGCTGAAGGGCATCGACTTCAAGGAGGACGGCAACATCCTGGGGCAC
+AAGCTGGAGTACAACTACAACAGCCACAAC
+`;
+
+const EXAMPLE_REV_READ_FASTA = `>EGFP_rev_M13R EGFP reverse read (440 bp, reverse-complement)
+TTACTTGTACAGCTCGTCCATGCCGAGAGTGATCCCGGCGGCGGTCACGAACTCCAGCAG
+GACCATGTGATCGCGCTTCTCGTTGGGGTCTTTGCTCAGGGCGGACTGGGTGCTCAGGTA
+GTGGTTGTCGGGCAGCAGCACGGGGCCGTCGCCGATGGGGGTGTTCTGCTGGTAGTGGTC
+GGCGAGCTGCACGCTGCCGTCCTCGATGTTGTGGCGGATCTTGAAGTTCACCTTGATGCC
+GTTCTTCTGCTTGTCGGCCATGATATAGACGTTGTGGCTGTTGTAGTTGTACTCCAGCTT
+GTGCCCCAGGATGTTGCCGTCCTCCTTGAAGTCGATGCCCTTCAGCTCGATGCGGTTCAC
+CAGGGTGTCGCCCTCGAACTTCACCTCGGCGCGGGTCTTGTAGTTGCCGTCGTCCTTGAA
+GAAGATGGTGCGCTCCTGGA
+`;
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function parseFasta(text: string): { name: string; sequence: string }[] {
@@ -686,6 +730,20 @@ export function SangerTool() {
 		[activeReadId],
 	);
 
+	const loadExample = useCallback(() => {
+		applyRefText(EXAMPLE_REF_FASTA);
+		setReads([]);
+		setActiveReadId(null);
+		setVerifyState({ status: "idle" });
+		const fwd = new File([EXAMPLE_FWD_READ_FASTA], "EGFP_fwd_M13F.fasta", {
+			type: "text/plain",
+		});
+		const rev = new File([EXAMPLE_REV_READ_FASTA], "EGFP_rev_M13R.fasta", {
+			type: "text/plain",
+		});
+		void addFiles([fwd, rev]);
+	}, [applyRefText, addFiles]);
+
 	const toggleTrace = useCallback((id: string) => {
 		setActiveReadId((prev) => (prev === id ? null : id));
 	}, []);
@@ -1043,6 +1101,19 @@ export function SangerTool() {
 											}}
 										>
 											Upload file
+										</button>
+										<button
+											type="button"
+											onClick={loadExample}
+											style={{
+												...btnStyle,
+												background: "none",
+												border: "1px solid #ddd8ce",
+												color: "#1a4731",
+											}}
+											title="Load EGFP CDS + two demo Sanger reads (forward + reverse)"
+										>
+											Load example
 										</button>
 										<input
 											ref={refFileInputRef}
