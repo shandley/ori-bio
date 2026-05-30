@@ -196,27 +196,26 @@ describe("annotate — Tier A forward strand", () => {
 		expect(annotate(query, [LONG_FEAT])).toHaveLength(0);
 	});
 
-	it("keeps at most one hit per feature per strand when feature appears twice", () => {
-		// Tier A's `best` variable keeps only the highest-identity candidate per
-		// feature per strand. With two identical copies, each strand search emits
-		// one result. Those two may be at different positions (non-overlapping) so
-		// both can survive dedup — the total is ≤2, not O(copies²).
+	it("keeps exactly one hit per feature when it appears twice on the forward strand", () => {
+		// Tier A keeps the best-scoring offset per feature per strand.
+		// Two forward copies → one fwd result. RC of the query has RC(EGFP) twice,
+		// so feature.seq is absent from RC(upper) → zero reverse results.
+		// Total: exactly 1 annotation.
 		const query = A(50) + EGFP_100 + A(50) + EGFP_100 + A(50);
 		const results = annotate(query, [LONG_FEAT]);
 		const hits = results.filter((a) => a.name === "EGFP");
-		expect(hits.length).toBeLessThanOrEqual(2);
-		expect(hits.length).toBeGreaterThanOrEqual(1);
+		expect(hits).toHaveLength(1);
 	});
 });
 
 // ── Strand direction ──────────────────────────────────────────────────────────
 //
-// The algorithm runs two searches: one on `upper` (dir=1) and one on
-// `RC(upper)` looking for `RC(feature)` (dir=-1).  For a feature present in
-// the forward strand both searches find the same position; dedup keeps the
-// dir=1 hit.  Features present *only* as RC(feature) in the forward strand
-// are not detected — the algorithm relies on features.json storing sequences
-// in the orientation that appears in the forward strand.
+// The forward search scans `upper` for feature.seq → direction 1.
+// The reverse search scans RC(upper) for feature.seq → direction -1.
+// When RC(feature.seq) sits at [p, p+len) in upper, RC(upper) has feature.seq
+// at [len-p-flen, len-p), and the coordinate transform maps it back to [p, p+len)
+// with direction -1.  Each search finds distinct positions, so no dedup is
+// needed to remove same-position duplicates.
 
 describe("annotate — strand direction", () => {
 	it("annotates a forward-strand feature with direction 1", () => {
@@ -224,14 +223,36 @@ describe("annotate — strand direction", () => {
 		expect(ann.direction).toBe(1);
 	});
 
-	it("deduplicates same-position forward/reverse hits to a single annotation", () => {
-		// Both strand searches find the feature at [200, 299); dedup keeps one.
+	it("produces exactly one annotation for a forward-strand feature", () => {
 		const results = annotate(A(200) + EGFP_100 + A(200), [LONG_FEAT]);
 		expect(results).toHaveLength(1);
 	});
 
-	it("returns identity ≥ 0.82 regardless of which strand hit survives dedup", () => {
-		const ann = annotate(A(200) + EGFP_100 + A(200), [LONG_FEAT])[0]!;
+	it("annotates a minus-strand feature with direction -1", () => {
+		const QUERY_RC = A(200) + reverseComplement(EGFP_100) + A(200);
+		const results = annotate(QUERY_RC, [LONG_FEAT]);
+		expect(results).toHaveLength(1);
+		expect(results[0]!.direction).toBe(-1);
+	});
+
+	it("returns correct genomic coordinates for a minus-strand feature", () => {
+		const QUERY_RC = A(200) + reverseComplement(EGFP_100) + A(200);
+		const ann = annotate(QUERY_RC, [LONG_FEAT])[0]!;
+		expect(ann.start).toBe(200);
+		expect(ann.end).toBe(200 + EGFP_100.length);
+	});
+
+	it("detects both orientations when feature is present on both strands", () => {
+		// Feature on + at [0, len) and its RC on - at [len+50, len+50+len)
+		const query = EGFP_100 + A(50) + reverseComplement(EGFP_100) + A(50);
+		const results = annotate(query, [LONG_FEAT]);
+		expect(results).toHaveLength(2);
+		const dirs = results.map((a) => a.direction).sort();
+		expect(dirs).toEqual([-1, 1]);
+	});
+
+	it("returns identity ≥ 0.82 for a minus-strand hit", () => {
+		const ann = annotate(A(200) + reverseComplement(EGFP_100) + A(200), [LONG_FEAT])[0]!;
 		expect(ann.identity).toBeGreaterThanOrEqual(0.82);
 	});
 });
@@ -259,6 +280,15 @@ describe("annotate — Tier B (short features 10–49 bp)", () => {
 		const results = annotate(query, [SHORT_FEAT]);
 		const hits = results.filter((a) => a.name === "SV40 NLS");
 		expect(hits).toHaveLength(2);
+	});
+
+	it("detects a short feature on the minus strand", () => {
+		const query = A(100) + reverseComplement(SV40_NLS) + A(100);
+		const results = annotate(query, [SHORT_FEAT]);
+		expect(results).toHaveLength(1);
+		expect(results[0]!.direction).toBe(-1);
+		expect(results[0]!.start).toBe(100);
+		expect(results[0]!.end).toBe(100 + SV40_NLS.length);
 	});
 
 	it("skips features shorter than 10 bp", () => {

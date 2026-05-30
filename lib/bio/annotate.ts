@@ -1,18 +1,31 @@
 /**
- * In-browser sequence annotation using a two-tier approach:
+ * In-browser sequence annotation using a two-tier approach.
+ *
+ * Strand model
+ * ------------
+ * features.json stores each feature in its canonical coding orientation
+ * (5'→3' sense sequence).  Both strands of the query are searched by running
+ * the same feature sequence against two k-mer maps:
+ *
+ *   fwdMap  built from upper    → detects features on the + strand (dir = 1)
+ *   rcMap   built from RC(upper)→ detects features on the − strand (dir = −1)
+ *
+ * When RC(feature.seq) sits at position p in upper, RC(upper) has feature.seq
+ * at position len−p−flen.  The rcMap search finds it there; the coordinate
+ * transform (start = len−rawEnd, end = len−rawStart) maps it back to [p, p+flen)
+ * with direction −1.
  *
  * Tier A — k-mer vote (features ≥ 50 bp):
- *   1. Build a k-mer position map for the query (O(queryLen))
- *   2. For each feature, sample seed k-mers and look them up in the query map
- *   3. Cluster votes by expected start position; candidates with ≥3 agreement
- *   4. Verify with identity calculation over the candidate window
- *   5. Repeat on reverse complement for minus-strand features
+ *   1. Build k-mer position maps for both strands of the query (O(queryLen))
+ *   2. For each feature, sample 12 evenly-spaced seed k-mers and vote on
+ *      expected start position
+ *   3. Candidates with ≥ 3 agreeing votes are verified by identity calculation
+ *   4. Best-scoring offset per feature per strand is kept
  *
  * Tier B — sliding-window exact match (features 10–49 bp):
- *   Short features have too few k-mers for reliable voting. Instead, a window
- *   of exactly feature.length is slid across the query on both strands.
- *   Threshold: at most 2 mismatches allowed (≈ 93% for a 30 bp feature),
- *   which is strict enough to avoid random hits in typical plasmid sequences.
+ *   Short features have too few k-mers for reliable voting.  A window of
+ *   exactly feature.length is slid across both strands of the query.
+ *   Threshold: at most 2 mismatches (≈ 93% for a 30 bp feature).
  *   All hits above threshold are returned; the dedup step handles overlaps.
  *
  * Coverage: virtually all standard lab features including short regulatory
@@ -140,7 +153,7 @@ function searchShortFeatures(
 	features: CanonicalFeature[],
 ): Annotation[] {
 	// Build deduplicated variant map: name → unique sequences (capped)
-	type Variant = { seq: string; rcSeq: string; type: string; color: string };
+	type Variant = { seq: string; type: string; color: string };
 	const byName = new Map<string, Variant[]>();
 
 	for (const f of features) {
@@ -150,7 +163,6 @@ function searchShortFeatures(
 		if (existing.length < SHORT_MAX_VARIANTS && !existing.some((e) => e.seq === f.seq)) {
 			existing.push({
 				seq: f.seq,
-				rcSeq: reverseComplement(f.seq),
 				type: f.type,
 				color: featureColor(f.type),
 			});
@@ -168,8 +180,8 @@ function searchShortFeatures(
 			const minId = (flen - SHORT_MAX_MISMATCHES) / flen;
 
 			for (const [queryStrand, fseq, dir] of [
-				[querySeq, v.seq,   1] as [string, string, 1],
-				[rcSeq,    v.rcSeq, -1] as [string, string, -1],
+				[querySeq, v.seq, 1]  as [string, string, 1],
+				[rcSeq,    v.seq, -1] as [string, string, -1],
 			]) {
 				for (let i = 0; i <= qLen - flen; i++) {
 					const id = computeIdentity(queryStrand.slice(i, i + flen), fseq);
@@ -207,7 +219,7 @@ function searchStrand(
 
 	for (let fi = 0; fi < features.length; fi++) {
 		const feature = features[fi]!;
-		const fseq = strand === 1 ? feature.seq : reverseComplement(feature.seq);
+		const fseq = feature.seq; // same on both strands: reverse search runs on rcSeq
 		const flen = fseq.length;
 		// Short features are handled by searchShortFeatures — skip here
 		if (flen < SHORT_THRESHOLD) continue;
