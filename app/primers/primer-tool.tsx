@@ -1,20 +1,35 @@
 "use client";
 
+import type { AssemblyPrimerPair, PrimerCandidate, PrimerPair } from "@shandley/primd";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { AssemblyPrimerPair, PrimerCandidate, PrimerPair } from "@shandley/primd";
+import { SiteNav } from "@/components/nav/site-nav";
 import { AmpliconHeatmap } from "@/components/primer-viz/amplicon-heatmap";
 import { MeltCurve } from "@/components/primer-viz/melt-curve";
 import { PairScatter } from "@/components/primer-viz/pair-scatter";
-import type { PrimerWorkerRequest, PrimerWorkerResponse } from "@/components/sequence/primer-design.worker";
-import type { SpecHit, SpecRequest, SpecResponse } from "./specificity.worker";
-import type { WalkingRequest, WalkingResponse, WalkingResult } from "./walking.worker";
+import type {
+	PrimerWorkerRequest,
+	PrimerWorkerResponse,
+} from "@/components/sequence/primer-design.worker";
+import type {
+	ConsensusPrimer,
+	ConservationRequest,
+	ConservationResponse,
+	ConservationResult,
+} from "./conservation.worker";
+import { ConservationTrack } from "./conservation-track";
 import { CoverageMap } from "./coverage-map";
-import type { ConservationRequest, ConservationResponse, ConservationResult, ConsensusPrimer } from "./conservation.worker";
-import type { ExonJunctionRequest, ExonJunctionResponse, ExonJunctionResult, ExonJunctionPair, JunctionPrimer } from "./exon-junction.worker";
+import type {
+	ExonJunctionPair,
+	ExonJunctionRequest,
+	ExonJunctionResponse,
+	ExonJunctionResult,
+	JunctionPrimer,
+} from "./exon-junction.worker";
 import type { MultiplexRequest, MultiplexResponse, MultiplexResult } from "./multiplex.worker";
 import { MultiplexMatrix } from "./multiplex-matrix";
-import { ConservationTrack } from "./conservation-track";
+import type { SpecHit, SpecRequest, SpecResponse } from "./specificity.worker";
+import type { WalkingRequest, WalkingResponse, WalkingResult } from "./walking.worker";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -53,10 +68,10 @@ const POLYMERASES: Polymerase[] = ["Q5", "Phusion", "KAPA HiFi", "Taq", "Custom"
 
 // Ta offset from the lower-Tm primer in the pair (empirical, from NEB/manufacturer guidelines)
 const POLYMERASE_OFFSET: Record<Polymerase, number> = {
-	Q5: 1,        // NEB: Ta = Tm(lower) + 1°C
-	Phusion: 3,   // NEB/Thermo: Ta = Tm(lower) + 3°C
+	Q5: 1, // NEB: Ta = Tm(lower) + 1°C
+	Phusion: 3, // NEB/Thermo: Ta = Tm(lower) + 3°C
 	"KAPA HiFi": 1,
-	Taq: -5,      // conservative standard; many labs use Tm(lower) - 5
+	Taq: -5, // conservative standard; many labs use Tm(lower) - 5
 	Custom: 0,
 };
 
@@ -78,15 +93,20 @@ function downloadCsv(
 		for (const [i, pair] of assemblyPairs.entries()) {
 			const base = `Pair${i + 1}`;
 			const method = pair.fwd.tail.includes("GGTCTC") ? "Golden Gate" : "Gibson";
-			rows.push(`${base}-Fwd,${pair.fwd.fullSeq},25nm,STD,"${pair.productSize}bp | ann ${pair.annealingTm.toFixed(1)}°C | full ${pair.fwd.fullPrimerTm.toFixed(1)}°C | ${method}"`);
-			rows.push(`${base}-Rev,${pair.rev.fullSeq},25nm,STD,"${pair.productSize}bp | ann ${pair.annealingTm.toFixed(1)}°C | full ${pair.rev.fullPrimerTm.toFixed(1)}°C | ${method}"`);
+			rows.push(
+				`${base}-Fwd,${pair.fwd.fullSeq},25nm,STD,"${pair.productSize}bp | ann ${pair.annealingTm.toFixed(1)}°C | full ${pair.fwd.fullPrimerTm.toFixed(1)}°C | ${method}"`,
+			);
+			rows.push(
+				`${base}-Rev,${pair.rev.fullSeq},25nm,STD,"${pair.productSize}bp | ann ${pair.annealingTm.toFixed(1)}°C | full ${pair.rev.fullPrimerTm.toFixed(1)}°C | ${method}"`,
+			);
 		}
 	} else {
 		for (const [i, pair] of pairs.entries()) {
 			const base = `Pair${i + 1}`;
 			const ta = computeTa(Math.min(pair.fwd.tm, pair.rev.tm), polymerase);
 			const modeLabel = mode === "qpcr" ? "qPCR" : "PCR";
-			const effNote = pair.efficiencyScore != null ? ` | eff ${(pair.efficiencyScore * 100).toFixed(0)}%` : "";
+			const effNote =
+				pair.efficiencyScore != null ? ` | eff ${(pair.efficiencyScore * 100).toFixed(0)}%` : "";
 			const note = `Tm_fwd=${pair.fwd.tm.toFixed(1)} Tm_rev=${pair.rev.tm.toFixed(1)} Ta=${ta.toFixed(0)}°C(${polymerase}) ${pair.productSize}bp ${modeLabel}${effNote}`;
 			rows.push(`${base}-Fwd,${pair.fwd.seq},25nm,STD,"${note}"`);
 			rows.push(`${base}-Rev,${pair.rev.seq},25nm,STD,"${note}"`);
@@ -206,12 +226,18 @@ function SeqLine({
 				{primer.tm.toFixed(1)}°
 			</span>
 			{accessBad && (
-				<span title="Binding site in secondary structure" style={{ fontSize: "9px", color: "#a02828", lineHeight: 1 }}>
+				<span
+					title="Binding site in secondary structure"
+					style={{ fontSize: "9px", color: "#a02828", lineHeight: 1 }}
+				>
 					⚠
 				</span>
 			)}
 			{accessWarn && (
-				<span title="Binding site partially structured" style={{ fontSize: "9px", color: "#b8933a", lineHeight: 1 }}>
+				<span
+					title="Binding site partially structured"
+					style={{ fontSize: "9px", color: "#b8933a", lineHeight: 1 }}
+				>
 					~
 				</span>
 			)}
@@ -221,10 +247,19 @@ function SeqLine({
 
 // ── Multiplex melt curve (all amplicons overlaid) ────────────────────────────
 
-function MultiplexMeltCurve({ pairs }: { pairs: import("./multiplex.worker").MultiplexPairResult[] }) {
+function MultiplexMeltCurve({
+	pairs,
+}: {
+	pairs: import("./multiplex.worker").MultiplexPairResult[];
+}) {
 	const SPACER = 100;
 	let compositeSeq = "";
-	const meltPairs: { fwd: { start: number; end: number }; rev: { start: number; end: number }; productSize: number; ampliconTm: number }[] = [];
+	const meltPairs: {
+		fwd: { start: number; end: number };
+		rev: { start: number; end: number };
+		productSize: number;
+		ampliconTm: number;
+	}[] = [];
 	for (const p of pairs) {
 		if (!p.pair || p.ampliconTm === undefined) continue;
 		const offset = compositeSeq.length;
@@ -240,11 +275,38 @@ function MultiplexMeltCurve({ pairs }: { pairs: import("./multiplex.worker").Mul
 	if (meltPairs.length === 0) return null;
 	return (
 		<div style={{ padding: "12px 20px 16px", borderTop: "1px solid #ddd8ce" }}>
-			<div style={{ fontFamily: "var(--font-courier)", fontSize: "9px", letterSpacing: "0.12em", color: "#9a9284", textTransform: "uppercase", marginBottom: "10px" }}>Amplicon melt curves</div>
-			<div style={{ background: "#faf7f2", borderRadius: "3px", border: "1px solid #ddd8ce", padding: "12px", display: "inline-block" }}>
+			<div
+				style={{
+					fontFamily: "var(--font-courier)",
+					fontSize: "9px",
+					letterSpacing: "0.12em",
+					color: "#9a9284",
+					textTransform: "uppercase",
+					marginBottom: "10px",
+				}}
+			>
+				Amplicon melt curves
+			</div>
+			<div
+				style={{
+					background: "#faf7f2",
+					borderRadius: "3px",
+					border: "1px solid #ddd8ce",
+					padding: "12px",
+					display: "inline-block",
+				}}
+			>
 				<MeltCurve pairs={meltPairs} seq={compositeSeq} highlightIndex={0} />
 			</div>
-			<p style={{ fontFamily: "var(--font-courier)", fontSize: "8px", color: "#b8b0a4", margin: "6px 0 0", lineHeight: 1.6 }}>
+			<p
+				style={{
+					fontFamily: "var(--font-courier)",
+					fontSize: "8px",
+					color: "#b8b0a4",
+					margin: "6px 0 0",
+					lineHeight: 1.6,
+				}}
+			>
 				Peaks overlaid — similar Tm means the panel works at one annealing temperature.
 			</p>
 		</div>
@@ -253,7 +315,14 @@ function MultiplexMeltCurve({ pairs }: { pairs: import("./multiplex.worker").Mul
 
 // ── Assembly plots (amplicon heatmap + pair scatter) ──────────────────────────
 
-function AssemblyPlots({ pair, allPairs, seq, tmTarget, activePlot, onTabChange }: {
+function AssemblyPlots({
+	pair,
+	allPairs,
+	seq,
+	tmTarget,
+	activePlot,
+	onTabChange,
+}: {
 	pair: AssemblyPrimerPair;
 	allPairs: AssemblyPrimerPair[];
 	seq: string;
@@ -274,16 +343,61 @@ function AssemblyPlots({ pair, allPairs, seq, tmTarget, activePlot, onTabChange 
 	}));
 	return (
 		<div style={{ padding: "16px 20px" }}>
-			<div style={{ fontFamily: "var(--font-courier)", fontSize: "9px", letterSpacing: "0.12em", color: "#9a9284", textTransform: "uppercase", marginBottom: "10px" }}>Plots</div>
-			<div style={{ display: "flex", gap: "0", marginBottom: "12px", borderBottom: "1px solid #ddd8ce" }}>
+			<div
+				style={{
+					fontFamily: "var(--font-courier)",
+					fontSize: "9px",
+					letterSpacing: "0.12em",
+					color: "#9a9284",
+					textTransform: "uppercase",
+					marginBottom: "10px",
+				}}
+			>
+				Plots
+			</div>
+			<div
+				style={{
+					display: "flex",
+					gap: "0",
+					marginBottom: "12px",
+					borderBottom: "1px solid #ddd8ce",
+				}}
+			>
 				{(["heatmap", "scatter"] as const).map((tab) => (
-					<button key={tab} type="button" onClick={() => onTabChange(tab)} style={{ fontFamily: "var(--font-courier)", fontSize: "9px", letterSpacing: "0.08em", textTransform: "uppercase", padding: "7px 14px", background: "none", border: "none", borderBottom: activePlot === tab ? "2px solid #1a4731" : "2px solid transparent", color: activePlot === tab ? "#1a4731" : "#9a9284", cursor: "pointer", marginBottom: "-1px" }}>
+					<button
+						key={tab}
+						type="button"
+						onClick={() => onTabChange(tab)}
+						style={{
+							fontFamily: "var(--font-courier)",
+							fontSize: "9px",
+							letterSpacing: "0.08em",
+							textTransform: "uppercase",
+							padding: "7px 14px",
+							background: "none",
+							border: "none",
+							borderBottom: activePlot === tab ? "2px solid #1a4731" : "2px solid transparent",
+							color: activePlot === tab ? "#1a4731" : "#9a9284",
+							cursor: "pointer",
+							marginBottom: "-1px",
+						}}
+					>
 						{tab === "heatmap" ? "Amplicon Structure" : "Pair Overview"}
 					</button>
 				))}
 			</div>
-			<div style={{ background: "#faf7f2", borderRadius: "3px", border: "1px solid #ddd8ce", padding: "12px", display: "inline-block" }}>
-				{activePlot === "heatmap" && <AmpliconHeatmap pair={heatmapPair} seq={seq} temperature={tmTarget - 5} />}
+			<div
+				style={{
+					background: "#faf7f2",
+					borderRadius: "3px",
+					border: "1px solid #ddd8ce",
+					padding: "12px",
+					display: "inline-block",
+				}}
+			>
+				{activePlot === "heatmap" && (
+					<AmpliconHeatmap pair={heatmapPair} seq={seq} temperature={tmTarget - 5} />
+				)}
 				{activePlot === "scatter" && <PairScatter pairs={scatterPairs} mode="pcr" />}
 			</div>
 		</div>
@@ -338,7 +452,8 @@ function SpecBadge({
 
 	// Sort hits: CDS and promoter first
 	const sorted = [...hits].sort((a, b) => {
-		const rank = (t: string) => (t === "CDS" ? 0 : t === "promoter" ? 1 : t === "rep_origin" ? 2 : 3);
+		const rank = (t: string) =>
+			t === "CDS" ? 0 : t === "promoter" ? 1 : t === "rep_origin" ? 2 : 3;
 		return rank(a.featureType) - rank(b.featureType);
 	});
 
@@ -617,21 +732,58 @@ function AssemblySeqLine({
 				padding: "2px 0",
 			}}
 		>
-			<span style={{ fontFamily: "var(--font-courier)", fontSize: "8px", color: "#9a9284", width: "9px", flexShrink: 0 }}>
+			<span
+				style={{
+					fontFamily: "var(--font-courier)",
+					fontSize: "8px",
+					color: "#9a9284",
+					width: "9px",
+					flexShrink: 0,
+				}}
+			>
 				{dir}
 			</span>
-			<span style={{ fontFamily: "var(--font-courier)", fontSize: "10px", letterSpacing: "0.04em", flex: 1, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
+			<span
+				style={{
+					fontFamily: "var(--font-courier)",
+					fontSize: "10px",
+					letterSpacing: "0.04em",
+					flex: 1,
+					overflow: "hidden",
+					whiteSpace: "nowrap",
+					textOverflow: "ellipsis",
+				}}
+			>
 				<span style={{ color: "#2d7a54", opacity: 0.75 }}>{tail}</span>
-				<span style={{ color: copied ? "#1a4731" : "#1c1a16", transition: "color 0.15s" }}>{annealing}</span>
+				<span style={{ color: copied ? "#1a4731" : "#1c1a16", transition: "color 0.15s" }}>
+					{annealing}
+				</span>
 			</span>
-			<span style={{ fontFamily: "var(--font-courier)", fontSize: "8px", color: "#9a9284", flexShrink: 0 }}>
+			<span
+				style={{
+					fontFamily: "var(--font-courier)",
+					fontSize: "8px",
+					color: "#9a9284",
+					flexShrink: 0,
+				}}
+			>
 				{fullPrimerTm.toFixed(1)}°
 			</span>
 		</div>
 	);
 }
 
-function AssemblyPairCard({ pair, rank, selected, onClick }: { pair: AssemblyPrimerPair; rank: number; selected?: boolean; onClick?: () => void }) {
+function AssemblyPairCard({
+	pair,
+	rank,
+	selected,
+	onClick,
+}: {
+	pair: AssemblyPrimerPair;
+	rank: number;
+	selected?: boolean;
+	onClick?: () => void;
+}) {
 	const [copiedFwd, setCopiedFwd] = useState(false);
 	const [copiedRev, setCopiedRev] = useState(false);
 	const [copiedAll, setCopiedAll] = useState(false);
@@ -664,7 +816,11 @@ function AssemblyPairCard({ pair, rank, selected, onClick }: { pair: AssemblyPri
 			style={{
 				padding: "12px 14px",
 				borderBottom: "1px solid rgba(221,216,206,0.5)",
-				background: selected ? "rgba(26,71,49,0.07)" : isBest ? "rgba(26,71,49,0.03)" : "transparent",
+				background: selected
+					? "rgba(26,71,49,0.07)"
+					: isBest
+						? "rgba(26,71,49,0.03)"
+						: "transparent",
 				borderLeft: selected ? "3px solid #1a4731" : "3px solid transparent",
 				cursor: onClick ? "pointer" : "default",
 			}}
@@ -678,7 +834,14 @@ function AssemblyPairCard({ pair, rank, selected, onClick }: { pair: AssemblyPri
 				}}
 			>
 				<div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-					<span style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: isBest ? "#1a4731" : "#9a9284", fontWeight: isBest ? 700 : 400 }}>
+					<span
+						style={{
+							fontFamily: "var(--font-courier)",
+							fontSize: "9px",
+							color: isBest ? "#1a4731" : "#9a9284",
+							fontWeight: isBest ? 700 : 400,
+						}}
+					>
 						#{rank}
 					</span>
 					<span style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: "#5a5648" }}>
@@ -695,13 +858,39 @@ function AssemblyPairCard({ pair, rank, selected, onClick }: { pair: AssemblyPri
 				<button
 					type="button"
 					onClick={copyBoth}
-					style={{ background: "none", border: "none", cursor: "pointer", padding: "0 2px", fontFamily: "var(--font-courier)", fontSize: "9px", color: copiedAll ? "#1a4731" : "#9a9284", transition: "color 0.15s", flexShrink: 0 }}
+					style={{
+						background: "none",
+						border: "none",
+						cursor: "pointer",
+						padding: "0 2px",
+						fontFamily: "var(--font-courier)",
+						fontSize: "9px",
+						color: copiedAll ? "#1a4731" : "#9a9284",
+						transition: "color 0.15s",
+						flexShrink: 0,
+					}}
 				>
 					{copiedAll ? "copied" : "copy"}
 				</button>
 			</div>
-			<AssemblySeqLine dir="→" tail={pair.fwd.tail} annealing={pair.fwd.seq} tm={pair.fwd.tm} fullPrimerTm={pair.fwd.fullPrimerTm} onCopy={copyFwd} copied={copiedFwd} />
-			<AssemblySeqLine dir="←" tail={pair.rev.tail} annealing={pair.rev.seq} tm={pair.rev.tm} fullPrimerTm={pair.rev.fullPrimerTm} onCopy={copyRev} copied={copiedRev} />
+			<AssemblySeqLine
+				dir="→"
+				tail={pair.fwd.tail}
+				annealing={pair.fwd.seq}
+				tm={pair.fwd.tm}
+				fullPrimerTm={pair.fwd.fullPrimerTm}
+				onCopy={copyFwd}
+				copied={copiedFwd}
+			/>
+			<AssemblySeqLine
+				dir="←"
+				tail={pair.rev.tail}
+				annealing={pair.rev.seq}
+				tm={pair.rev.tm}
+				fullPrimerTm={pair.rev.fullPrimerTm}
+				onCopy={copyRev}
+				copied={copiedRev}
+			/>
 		</div>
 	);
 }
@@ -825,20 +1014,23 @@ export function PrimerTool() {
 	const workerRef = useRef<Worker | null>(null);
 	const specWorkerRef = useRef<Worker | null>(null);
 
-	useEffect(() => () => {
-		workerRef.current?.terminate();
-		specWorkerRef.current?.terminate();
-		walkWorkerRef.current?.terminate();
-		consWorkerRef.current?.terminate();
-		exonJunctionWorkerRef.current?.terminate();
-		multiplexWorkerRef.current?.terminate();
-	}, []);
+	useEffect(
+		() => () => {
+			workerRef.current?.terminate();
+			specWorkerRef.current?.terminate();
+			walkWorkerRef.current?.terminate();
+			consWorkerRef.current?.terminate();
+			exonJunctionWorkerRef.current?.terminate();
+			multiplexWorkerRef.current?.terminate();
+		},
+		[],
+	);
 
 	// Re-run design when a quick-fix button triggers a retry
 	useEffect(() => {
 		if (retryTrigger === 0) return;
 		design();
-	// eslint-disable-next-line react-hooks/exhaustive-deps
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [retryTrigger]);
 
 	// Auto-run specificity check when PCR/qPCR pairs arrive
@@ -857,9 +1049,7 @@ export function PrimerTool() {
 
 		// Reuse the spec worker across checks (features.json is cached inside it)
 		if (!specWorkerRef.current) {
-			specWorkerRef.current = new Worker(
-				new URL("./specificity.worker.ts", import.meta.url),
-			);
+			specWorkerRef.current = new Worker(new URL("./specificity.worker.ts", import.meta.url));
 		}
 		const worker = specWorkerRef.current;
 
@@ -872,7 +1062,10 @@ export function PrimerTool() {
 			for (const { id, hits } of e.data.results) {
 				// Recover seq from id: find it in unique map
 				for (const [seq, uid] of unique) {
-					if (uid === id) { map.set(seq, hits); break; }
+					if (uid === id) {
+						map.set(seq, hits);
+						break;
+					}
 				}
 			}
 			setSpecResults(map);
@@ -900,16 +1093,26 @@ export function PrimerTool() {
 		}
 		const worker = specWorkerRef.current;
 		worker.onmessage = (e: MessageEvent<SpecResponse>) => {
-			if (e.data.type === "error") { setSpecState("idle"); return; }
+			if (e.data.type === "error") {
+				setSpecState("idle");
+				return;
+			}
 			const map = new Map<string, SpecHit[]>();
 			for (const { id, hits } of e.data.results) {
-				for (const [seq2, uid] of unique) { if (uid === id) { map.set(seq2, hits); break; } }
+				for (const [seq2, uid] of unique) {
+					if (uid === id) {
+						map.set(seq2, hits);
+						break;
+					}
+				}
 			}
 			setSpecResults(map);
 			setSpecState("done");
 		};
 		worker.onerror = () => setSpecState("idle");
-		worker.postMessage({ primers: [...unique.entries()].map(([seq2, id]) => ({ seq: seq2, id })) } satisfies SpecRequest);
+		worker.postMessage({
+			primers: [...unique.entries()].map(([seq2, id]) => ({ seq: seq2, id })),
+		} satisfies SpecRequest);
 	}, [walkingResult]);
 
 	// Specificity check for Exon-junction primers
@@ -927,16 +1130,26 @@ export function PrimerTool() {
 		}
 		const worker = specWorkerRef.current;
 		worker.onmessage = (e: MessageEvent<SpecResponse>) => {
-			if (e.data.type === "error") { setSpecState("idle"); return; }
+			if (e.data.type === "error") {
+				setSpecState("idle");
+				return;
+			}
 			const map = new Map<string, SpecHit[]>();
 			for (const { id, hits } of e.data.results) {
-				for (const [seq2, uid] of unique) { if (uid === id) { map.set(seq2, hits); break; } }
+				for (const [seq2, uid] of unique) {
+					if (uid === id) {
+						map.set(seq2, hits);
+						break;
+					}
+				}
 			}
 			setSpecResults(map);
 			setSpecState("done");
 		};
 		worker.onerror = () => setSpecState("idle");
-		worker.postMessage({ primers: [...unique.entries()].map(([seq2, id]) => ({ seq: seq2, id })) } satisfies SpecRequest);
+		worker.postMessage({
+			primers: [...unique.entries()].map(([seq2, id]) => ({ seq: seq2, id })),
+		} satisfies SpecRequest);
 	}, [exonJunctionResult]);
 
 	// Specificity check for Multiplex primers
@@ -956,16 +1169,26 @@ export function PrimerTool() {
 		}
 		const worker = specWorkerRef.current;
 		worker.onmessage = (e: MessageEvent<SpecResponse>) => {
-			if (e.data.type === "error") { setSpecState("idle"); return; }
+			if (e.data.type === "error") {
+				setSpecState("idle");
+				return;
+			}
 			const map = new Map<string, SpecHit[]>();
 			for (const { id, hits } of e.data.results) {
-				for (const [seq2, uid] of unique) { if (uid === id) { map.set(seq2, hits); break; } }
+				for (const [seq2, uid] of unique) {
+					if (uid === id) {
+						map.set(seq2, hits);
+						break;
+					}
+				}
 			}
 			setSpecResults(map);
 			setSpecState("done");
 		};
 		worker.onerror = () => setSpecState("idle");
-		worker.postMessage({ primers: [...unique.entries()].map(([seq2, id]) => ({ seq: seq2, id })) } satisfies SpecRequest);
+		worker.postMessage({
+			primers: [...unique.entries()].map(([seq2, id]) => ({ seq: seq2, id })),
+		} satisfies SpecRequest);
 	}, [multiplexResult]);
 
 	// When seq changes, reset region end
@@ -1056,7 +1279,12 @@ export function PrimerTool() {
 			...(mode === "qpcr"
 				? { productSizeRange: [qpcrAmpliconMin, qpcrAmpliconMax] as [number, number] }
 				: useFullSeq
-					? { productSizeRange: [Math.floor(seq.length * 0.9), Math.ceil(seq.length * 1.1)] as [number, number] }
+					? {
+							productSizeRange: [Math.floor(seq.length * 0.9), Math.ceil(seq.length * 1.1)] as [
+								number,
+								number,
+							],
+						}
 					: {}),
 		};
 
@@ -1067,7 +1295,9 @@ export function PrimerTool() {
 						gibsonOverlap,
 						ggEnzymeSite:
 							assemblyMethod === "golden_gate"
-								? ({ BsaI: "GGTCTC", BbsI: "GAAGAC", BsmBI: "CGTCTC" } as Record<string, string>)[ggEnzyme]
+								? ({ BsaI: "GGTCTC", BbsI: "GAAGAC", BsmBI: "CGTCTC" } as Record<string, string>)[
+										ggEnzyme
+									]
 								: undefined,
 					}
 				: undefined;
@@ -1093,7 +1323,9 @@ export function PrimerTool() {
 				setAssemblyPairs(ar.pairs ?? []);
 				setWarning(ar.warning ?? null);
 			} else {
-				const pr = result as import("@shandley/primd").PCRResult | import("@shandley/primd").QPCRResult;
+				const pr = result as
+					| import("@shandley/primd").PCRResult
+					| import("@shandley/primd").QPCRResult;
 				setPairs((pr.pairs ?? []) as DesignPair[]);
 				setWarning(pr.warning ?? null);
 			}
@@ -1103,12 +1335,32 @@ export function PrimerTool() {
 			setError(e.message || "Worker error");
 		};
 		worker.postMessage(req);
-	}, [seq, seqError, useFullSeq, regionStart, regionEnd, mode, assemblyMethod, gibsonOverlap, ggEnzyme, tmTarget, minLen, maxLen, gcMin, gcMax, maxTmDiff, qpcrAmpliconMin, qpcrAmpliconMax]);
+	}, [
+		seq,
+		seqError,
+		useFullSeq,
+		regionStart,
+		regionEnd,
+		mode,
+		assemblyMethod,
+		gibsonOverlap,
+		ggEnzyme,
+		tmTarget,
+		minLen,
+		maxLen,
+		gcMin,
+		gcMax,
+		maxTmDiff,
+		qpcrAmpliconMin,
+		qpcrAmpliconMax,
+	]);
 
 	const designWalking = useCallback(() => {
 		if (!seq || seqError) return;
 		if (seq.length < walkReadLen) {
-			setWalkingError(`Sequence (${seq.length} bp) is shorter than one read length (${walkReadLen} bp).`);
+			setWalkingError(
+				`Sequence (${seq.length} bp) is shorter than one read length (${walkReadLen} bp).`,
+			);
 			return;
 		}
 		walkWorkerRef.current?.terminate();
@@ -1144,7 +1396,18 @@ export function PrimerTool() {
 			setWalkingError(e.message || "Walking design failed");
 		};
 		worker.postMessage(req);
-	}, [seq, seqError, walkReadLen, walkOverlap, walkDirection, minLen, maxLen, tmTarget, gcMin, gcMax]);
+	}, [
+		seq,
+		seqError,
+		walkReadLen,
+		walkOverlap,
+		walkDirection,
+		minLen,
+		maxLen,
+		tmTarget,
+		gcMin,
+		gcMax,
+	]);
 
 	const designMultiplex = useCallback(() => {
 		if (!multiplexTargets.trim()) return;
@@ -1229,7 +1492,19 @@ export function PrimerTool() {
 			setExonJunctionError(ev.message || "Exon-junction design failed");
 		};
 		worker.postMessage(req);
-	}, [seq, seqError, junctionPositionsRaw, minLen, maxLen, tmTarget, gcMin, gcMax, maxTmDiff, qpcrAmpliconMin, qpcrAmpliconMax]);
+	}, [
+		seq,
+		seqError,
+		junctionPositionsRaw,
+		minLen,
+		maxLen,
+		tmTarget,
+		gcMin,
+		gcMax,
+		maxTmDiff,
+		qpcrAmpliconMin,
+		qpcrAmpliconMax,
+	]);
 
 	const designConservation = useCallback(() => {
 		if (!alignmentRaw.trim()) return;
@@ -1271,84 +1546,15 @@ export function PrimerTool() {
 	const currentPair = pairs?.[selectedPair] ?? null;
 
 	return (
-		<div style={{ minHeight: "100vh", background: "#f5f0e8", display: "flex", flexDirection: "column" }}>
-			{/* Header */}
-			<header
-				style={{
-					height: "60px",
-					display: "flex",
-					alignItems: "center",
-					justifyContent: "space-between",
-					borderBottom: "1px solid #ddd8ce",
-					background: "rgba(245,240,232,0.97)",
-					backdropFilter: "blur(8px)",
-					padding: "0 28px",
-					flexShrink: 0,
-					position: "sticky",
-					top: 0,
-					zIndex: 50,
-				}}
-			>
-				<Link
-					href="/"
-					style={{ textDecoration: "none", display: "flex", alignItems: "baseline", gap: "10px" }}
-				>
-					<span style={{ fontFamily: "var(--font-playfair)", fontSize: "24px", fontWeight: 400, color: "#1c1a16", letterSpacing: "-0.01em" }}>
-						Ori
-					</span>
-					<span style={{ fontFamily: "var(--font-courier)", fontSize: "9px", fontStyle: "italic", color: "#9a9284", letterSpacing: "0.04em" }}>
-						molecular workbench
-					</span>
-				</Link>
-				<nav style={{ display: "flex", alignItems: "center", gap: "28px" }}>
-					{(
-						[
-							["/", "Home"],
-							["/library", "Library"],
-							["/primers", "Primers"],
-						] as const
-					).map(([href, label]) => (
-						<Link
-							key={href}
-							href={href}
-							style={{
-								fontFamily: "var(--font-karla)",
-								fontSize: "13px",
-								color: href === "/primers" ? "#1a4731" : "#5a5648",
-								textDecoration: "none",
-								fontWeight: href === "/primers" ? 500 : 400,
-								borderBottom: href === "/primers" ? "1px solid #1a4731" : "none",
-								paddingBottom: href === "/primers" ? "1px" : "0",
-							}}
-						>
-							{label}
-						</Link>
-					))}
-				</nav>
-				<div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-					<Link
-						href="/login"
-						style={{ fontFamily: "var(--font-karla)", fontSize: "13px", color: "#5a5648", textDecoration: "none" }}
-					>
-						Sign in
-					</Link>
-					<Link
-						href="/signup"
-						style={{
-							fontFamily: "var(--font-karla)",
-							fontSize: "13px",
-							fontWeight: 500,
-							background: "#1a4731",
-							color: "white",
-							textDecoration: "none",
-							padding: "7px 18px",
-							borderRadius: "3px",
-						}}
-					>
-						Get started
-					</Link>
-				</div>
-			</header>
+		<div
+			style={{
+				minHeight: "100vh",
+				background: "#f5f0e8",
+				display: "flex",
+				flexDirection: "column",
+			}}
+		>
+			<SiteNav />
 
 			{/* Body */}
 			<div style={{ flex: 1, display: "grid", gridTemplateColumns: "380px 1fr", minHeight: 0 }}>
@@ -1396,7 +1602,9 @@ export function PrimerTool() {
 						</p>
 					</div>
 
-					<div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: "16px" }}>
+					<div
+						style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: "16px" }}
+					>
 						{/* Sequence input — hidden in consensus and multiplex modes */}
 						{mode !== "consensus" && mode !== "multiplex" && (
 							<div>
@@ -1439,16 +1647,31 @@ export function PrimerTool() {
 									onChange={(e) => setMultiplexTargets(e.target.value)}
 									placeholder={">Target1\nATCGATCG...\n>Target2\nGCGATCGA..."}
 									rows={8}
-									style={{ ...inputStyle, resize: "vertical", lineHeight: 1.5, fontSize: "10px", letterSpacing: "0.04em", fontFamily: "var(--font-courier)" }}
+									style={{
+										...inputStyle,
+										resize: "vertical",
+										lineHeight: 1.5,
+										fontSize: "10px",
+										letterSpacing: "0.04em",
+										fontFamily: "var(--font-courier)",
+									}}
 								/>
-								{multiplexTargets.trim() && (() => {
-									const n = (multiplexTargets.match(/^>/gm) ?? []).length;
-									return (
-										<div style={{ marginTop: "4px", fontFamily: "var(--font-courier)", fontSize: "9px", color: n >= 2 ? "#9a9284" : "#b8933a" }}>
-											{n >= 2 ? `${n} targets` : `Need ≥ 2 targets (found ${n})`}
-										</div>
-									);
-								})()}
+								{multiplexTargets.trim() &&
+									(() => {
+										const n = (multiplexTargets.match(/^>/gm) ?? []).length;
+										return (
+											<div
+												style={{
+													marginTop: "4px",
+													fontFamily: "var(--font-courier)",
+													fontSize: "9px",
+													color: n >= 2 ? "#9a9284" : "#b8933a",
+												}}
+											>
+												{n >= 2 ? `${n} targets` : `Need ≥ 2 targets (found ${n})`}
+											</div>
+										);
+									})()}
 							</div>
 						)}
 
@@ -1470,93 +1693,127 @@ export function PrimerTool() {
 										fontFamily: "var(--font-courier)",
 									}}
 								/>
-								{alignmentRaw.trim() && (() => {
-									const nSeqs = (alignmentRaw.match(/^>/gm) ?? []).length;
-									return (
-										<div style={{ marginTop: "4px", fontFamily: "var(--font-courier)", fontSize: "9px", color: nSeqs >= 2 ? "#9a9284" : "#b8933a" }}>
-											{nSeqs >= 2 ? `${nSeqs} sequences` : `Need ≥ 2 sequences (found ${nSeqs})`}
-										</div>
-									);
-								})()}
+								{alignmentRaw.trim() &&
+									(() => {
+										const nSeqs = (alignmentRaw.match(/^>/gm) ?? []).length;
+										return (
+											<div
+												style={{
+													marginTop: "4px",
+													fontFamily: "var(--font-courier)",
+													fontSize: "9px",
+													color: nSeqs >= 2 ? "#9a9284" : "#b8933a",
+												}}
+											>
+												{nSeqs >= 2 ? `${nSeqs} sequences` : `Need ≥ 2 sequences (found ${nSeqs})`}
+											</div>
+										);
+									})()}
 							</div>
 						)}
 
 						{/* Region — not applicable in consensus or multiplex modes */}
-						{mode !== "consensus" && mode !== "multiplex" && <div>
-							<label style={labelStyle}>Target Region</label>
-							<label
-								style={{
-									display: "flex",
-									alignItems: "center",
-									gap: "7px",
-									cursor: "pointer",
-									marginBottom: "8px",
-								}}
-							>
-								<input
-									type="checkbox"
-									checked={useFullSeq}
-									onChange={(e) => setUseFullSeq(e.target.checked)}
-									style={{ accentColor: "#1a4731" }}
-								/>
-								<span style={{ fontFamily: "var(--font-courier)", fontSize: "10px", color: "#5a5648" }}>
-									Full sequence
-								</span>
-							</label>
-							{mode === "qpcr" && !useExonSpanning && (
-							<p style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: "#b8933a", margin: "0 0 4px", lineHeight: 1.5 }}>
-								Select an 80–150 bp region — primers add ~36 bp, keeping the amplicon within 70–200 bp.
-							</p>
-						)}
-						{mode === "qpcr" && useExonSpanning && (
-							<p style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: "#1a4731", margin: "0 0 4px", lineHeight: 1.5 }}>
-								Exon-spanning mode: forward primer straddles the junction — won't amplify gDNA.
-							</p>
-						)}
-						{!useFullSeq && (
-								<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-									<div>
-										<span style={{ ...labelStyle, marginBottom: "3px" }}>Start</span>
-										<input
-											type="number"
-											value={regionStart}
-											min={1}
-											max={seq.length}
-											onChange={(e) => setRegionStart(e.target.value)}
-											style={inputStyle}
-										/>
-									</div>
-									<div>
-										<span style={{ ...labelStyle, marginBottom: "3px" }}>End</span>
-										<input
-											type="number"
-											value={regionEnd}
-											min={1}
-											max={seq.length}
-											onChange={(e) => setRegionEnd(e.target.value)}
-											style={inputStyle}
-										/>
-									</div>
-								</div>
-							)}
-
-							{/* Live region / amplicon readout */}
-							{regionInfo && (mode === "qpcr" && !useExonSpanning || (mode === "pcr" && !useFullSeq)) && (
-								<div
+						{mode !== "consensus" && mode !== "multiplex" && (
+							<div>
+								<label style={labelStyle}>Target Region</label>
+								<label
 									style={{
-										fontFamily: "var(--font-courier)",
-										fontSize: "9px",
-										color: regionInfo.color,
-										lineHeight: 1.6,
-										paddingTop: "5px",
+										display: "flex",
+										alignItems: "center",
+										gap: "7px",
+										cursor: "pointer",
+										marginBottom: "8px",
 									}}
 								>
-									{mode === "qpcr"
-										? `Region: ${regionInfo.len} bp · amplicon ~${regionInfo.ampMin}–${regionInfo.ampMax} bp ${regionInfo.label}`
-										: `Region: ${regionInfo.len} bp`}
-								</div>
-							)}
-						</div>}
+									<input
+										type="checkbox"
+										checked={useFullSeq}
+										onChange={(e) => setUseFullSeq(e.target.checked)}
+										style={{ accentColor: "#1a4731" }}
+									/>
+									<span
+										style={{
+											fontFamily: "var(--font-courier)",
+											fontSize: "10px",
+											color: "#5a5648",
+										}}
+									>
+										Full sequence
+									</span>
+								</label>
+								{mode === "qpcr" && !useExonSpanning && (
+									<p
+										style={{
+											fontFamily: "var(--font-courier)",
+											fontSize: "9px",
+											color: "#b8933a",
+											margin: "0 0 4px",
+											lineHeight: 1.5,
+										}}
+									>
+										Select an 80–150 bp region — primers add ~36 bp, keeping the amplicon within
+										70–200 bp.
+									</p>
+								)}
+								{mode === "qpcr" && useExonSpanning && (
+									<p
+										style={{
+											fontFamily: "var(--font-courier)",
+											fontSize: "9px",
+											color: "#1a4731",
+											margin: "0 0 4px",
+											lineHeight: 1.5,
+										}}
+									>
+										Exon-spanning mode: forward primer straddles the junction — won't amplify gDNA.
+									</p>
+								)}
+								{!useFullSeq && (
+									<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+										<div>
+											<span style={{ ...labelStyle, marginBottom: "3px" }}>Start</span>
+											<input
+												type="number"
+												value={regionStart}
+												min={1}
+												max={seq.length}
+												onChange={(e) => setRegionStart(e.target.value)}
+												style={inputStyle}
+											/>
+										</div>
+										<div>
+											<span style={{ ...labelStyle, marginBottom: "3px" }}>End</span>
+											<input
+												type="number"
+												value={regionEnd}
+												min={1}
+												max={seq.length}
+												onChange={(e) => setRegionEnd(e.target.value)}
+												style={inputStyle}
+											/>
+										</div>
+									</div>
+								)}
+
+								{/* Live region / amplicon readout */}
+								{regionInfo &&
+									((mode === "qpcr" && !useExonSpanning) || (mode === "pcr" && !useFullSeq)) && (
+										<div
+											style={{
+												fontFamily: "var(--font-courier)",
+												fontSize: "9px",
+												color: regionInfo.color,
+												lineHeight: 1.6,
+												paddingTop: "5px",
+											}}
+										>
+											{mode === "qpcr"
+												? `Region: ${regionInfo.len} bp · amplicon ~${regionInfo.ampMin}–${regionInfo.ampMax} bp ${regionInfo.label}`
+												: `Region: ${regionInfo.len} bp`}
+										</div>
+									)}
+							</div>
+						)}
 
 						{/* Mode tabs */}
 						<div>
@@ -1570,46 +1827,73 @@ export function PrimerTool() {
 									overflow: "hidden",
 								}}
 							>
-								{(["pcr", "qpcr", "assembly", "walking", "consensus", "multiplex"] as const).map((m, i) => (
-									<button
-										key={m}
-										type="button"
-										onClick={() => {
-											setMode(m);
-											if (m === "qpcr") {
-												setUseFullSeq(false);
-												// Auto-center a 100 bp target region so the amplicon (~140 bp
-												// with primers) lands comfortably within the 70-200 bp range
-												if (seq.length >= 100) {
-													const mid = Math.floor(seq.length / 2);
-													setRegionStart(String(Math.max(1, mid - 50)));
-													setRegionEnd(String(Math.min(seq.length, mid + 50)));
+								{(["pcr", "qpcr", "assembly", "walking", "consensus", "multiplex"] as const).map(
+									(m, i) => (
+										<button
+											key={m}
+											type="button"
+											onClick={() => {
+												setMode(m);
+												if (m === "qpcr") {
+													setUseFullSeq(false);
+													// Auto-center a 100 bp target region so the amplicon (~140 bp
+													// with primers) lands comfortably within the 70-200 bp range
+													if (seq.length >= 100) {
+														const mid = Math.floor(seq.length / 2);
+														setRegionStart(String(Math.max(1, mid - 50)));
+														setRegionEnd(String(Math.min(seq.length, mid + 50)));
+													}
 												}
-											}
-										}}
-										style={{
-											fontFamily: "var(--font-courier)",
-											fontSize: "9px",
-											letterSpacing: "0.08em",
-											textTransform: "uppercase",
-											padding: "8px 4px",
-											background: mode === m ? "#1a4731" : "transparent",
-											color: mode === m ? "white" : "#5a5648",
-											border: "none",
-											borderLeft: i > 0 ? "1px solid #ddd8ce" : "none",
-											cursor: "pointer",
-											transition: "background 0.15s, color 0.15s",
-										}}
-									>
-										{m === "pcr" ? "PCR" : m === "qpcr" ? "qPCR" : m === "assembly" ? "Assembly" : m === "walking" ? "Walking" : m === "consensus" ? "Consensus" : "Multiplex"}
-									</button>
-								))}
+											}}
+											style={{
+												fontFamily: "var(--font-courier)",
+												fontSize: "9px",
+												letterSpacing: "0.08em",
+												textTransform: "uppercase",
+												padding: "8px 4px",
+												background: mode === m ? "#1a4731" : "transparent",
+												color: mode === m ? "white" : "#5a5648",
+												border: "none",
+												borderLeft: i > 0 ? "1px solid #ddd8ce" : "none",
+												cursor: "pointer",
+												transition: "background 0.15s, color 0.15s",
+											}}
+										>
+											{m === "pcr"
+												? "PCR"
+												: m === "qpcr"
+													? "qPCR"
+													: m === "assembly"
+														? "Assembly"
+														: m === "walking"
+															? "Walking"
+															: m === "consensus"
+																? "Consensus"
+																: "Multiplex"}
+										</button>
+									),
+								)}
 							</div>
 
 							{/* Assembly sub-options */}
 							{mode === "assembly" && (
-								<div style={{ marginTop: "10px", display: "flex", flexDirection: "column", gap: "8px" }}>
-									<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", border: "1px solid #ddd8ce", borderRadius: "3px", overflow: "hidden" }}>
+								<div
+									style={{
+										marginTop: "10px",
+										display: "flex",
+										flexDirection: "column",
+										gap: "8px",
+									}}
+								>
+									<div
+										style={{
+											display: "grid",
+											gridTemplateColumns: "1fr 1fr",
+											border: "1px solid #ddd8ce",
+											borderRadius: "3px",
+											overflow: "hidden",
+										}}
+									>
 										{(["gibson", "golden_gate"] as const).map((m, i) => (
 											<button
 												key={m}
@@ -1653,7 +1937,9 @@ export function PrimerTool() {
 												style={inputStyle}
 											>
 												{["BsaI", "BbsI", "BsmBI"].map((e) => (
-													<option key={e} value={e}>{e}</option>
+													<option key={e} value={e}>
+														{e}
+													</option>
 												))}
 											</select>
 										</div>
@@ -1693,7 +1979,15 @@ export function PrimerTool() {
 								</div>
 								<div>
 									<span style={labelStyle}>Direction</span>
-									<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", border: "1px solid #ddd8ce", borderRadius: "3px", overflow: "hidden" }}>
+									<div
+										style={{
+											display: "grid",
+											gridTemplateColumns: "1fr 1fr",
+											border: "1px solid #ddd8ce",
+											borderRadius: "3px",
+											overflow: "hidden",
+										}}
+									>
 										{(["fwd", "both"] as const).map((d, i) => (
 											<button
 												key={d}
@@ -1716,8 +2010,18 @@ export function PrimerTool() {
 										))}
 									</div>
 								</div>
-								<p style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: "#9a9284", margin: 0, lineHeight: 1.6 }}>
-									Step: {walkReadLen - walkOverlap} bp · ~{Math.ceil((seq.length || 1000) / (walkReadLen - walkOverlap))} primers for {seq.length > 0 ? `${seq.length} bp` : "this sequence"}
+								<p
+									style={{
+										fontFamily: "var(--font-courier)",
+										fontSize: "9px",
+										color: "#9a9284",
+										margin: 0,
+										lineHeight: 1.6,
+									}}
+								>
+									Step: {walkReadLen - walkOverlap} bp · ~
+									{Math.ceil((seq.length || 1000) / (walkReadLen - walkOverlap))} primers for{" "}
+									{seq.length > 0 ? `${seq.length} bp` : "this sequence"}
 								</p>
 							</div>
 						)}
@@ -1725,7 +2029,9 @@ export function PrimerTool() {
 						{/* Exon-junction sub-options (qPCR only) */}
 						{mode === "qpcr" && (
 							<div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-								<label style={{ display: "flex", alignItems: "center", gap: "7px", cursor: "pointer" }}>
+								<label
+									style={{ display: "flex", alignItems: "center", gap: "7px", cursor: "pointer" }}
+								>
 									<input
 										type="checkbox"
 										checked={useExonSpanning}
@@ -1735,13 +2041,22 @@ export function PrimerTool() {
 										}}
 										style={{ accentColor: "#1a4731" }}
 									/>
-									<span style={{ fontFamily: "var(--font-courier)", fontSize: "10px", color: "#1a4731", fontWeight: 600 }}>
+									<span
+										style={{
+											fontFamily: "var(--font-courier)",
+											fontSize: "10px",
+											color: "#1a4731",
+											fontWeight: 600,
+										}}
+									>
 										Exon-spanning (gDNA-free)
 									</span>
 								</label>
 								{useExonSpanning && (
 									<div>
-										<span style={labelStyle}>Exon junction positions (1-indexed, comma-separated)</span>
+										<span style={labelStyle}>
+											Exon junction positions (1-indexed, comma-separated)
+										</span>
 										<input
 											type="text"
 											value={junctionPositionsRaw}
@@ -1749,7 +2064,15 @@ export function PrimerTool() {
 											placeholder="e.g. 150, 300, 450"
 											style={inputStyle}
 										/>
-										<p style={{ fontFamily: "var(--font-courier)", fontSize: "8px", color: "#9a9284", margin: "4px 0 0", lineHeight: 1.6 }}>
+										<p
+											style={{
+												fontFamily: "var(--font-courier)",
+												fontSize: "8px",
+												color: "#9a9284",
+												margin: "4px 0 0",
+												lineHeight: 1.6,
+											}}
+										>
 											Position in mRNA where each new exon begins. From NCBI/Ensembl gene page.
 										</p>
 									</div>
@@ -1772,7 +2095,15 @@ export function PrimerTool() {
 										onChange={(e) => setConsThreshold(Number(e.target.value) / 100)}
 										style={{ width: "100%", accentColor: "#1a4731" }}
 									/>
-									<div style={{ display: "flex", justifyContent: "space-between", fontFamily: "var(--font-courier)", fontSize: "8px", color: "#b8b0a4" }}>
+									<div
+										style={{
+											display: "flex",
+											justifyContent: "space-between",
+											fontFamily: "var(--font-courier)",
+											fontSize: "8px",
+											color: "#b8b0a4",
+										}}
+									>
 										<span>60% (permissive)</span>
 										<span>100% (identical)</span>
 									</div>
@@ -1788,9 +2119,17 @@ export function PrimerTool() {
 										style={inputStyle}
 									/>
 								</div>
-								<p style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: "#9a9284", margin: 0, lineHeight: 1.6 }}>
-									Degenerate bases (R, Y, S, W…) cover polymorphic positions.
-									Set to 0 for fully conserved primers only.
+								<p
+									style={{
+										fontFamily: "var(--font-courier)",
+										fontSize: "9px",
+										color: "#9a9284",
+										margin: 0,
+										lineHeight: 1.6,
+									}}
+								>
+									Degenerate bases (R, Y, S, W…) cover polymorphic positions. Set to 0 for fully
+									conserved primers only.
 								</p>
 							</div>
 						)}
@@ -1810,8 +2149,17 @@ export function PrimerTool() {
 										style={inputStyle}
 									/>
 								</div>
-								<p style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: "#9a9284", margin: 0, lineHeight: 1.6 }}>
-									Pairs whose annealing temps differ by more than this are flagged. Cross-dimer ΔG &gt; −3 kcal/mol = compatible.
+								<p
+									style={{
+										fontFamily: "var(--font-courier)",
+										fontSize: "9px",
+										color: "#9a9284",
+										margin: 0,
+										lineHeight: 1.6,
+									}}
+								>
+									Pairs whose annealing temps differ by more than this are flagged. Cross-dimer ΔG
+									&gt; −3 kcal/mol = compatible.
 								</p>
 							</div>
 						)}
@@ -1833,13 +2181,22 @@ export function PrimerTool() {
 								}}
 							>
 								<span style={labelStyle}>Options</span>
-								<span style={{ fontFamily: "var(--font-courier)", fontSize: "10px", color: "#9a9284" }}>
+								<span
+									style={{ fontFamily: "var(--font-courier)", fontSize: "10px", color: "#9a9284" }}
+								>
 									{optionsOpen ? "▲" : "▼"}
 								</span>
 							</button>
 
 							{optionsOpen && (
-								<div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "8px" }}>
+								<div
+									style={{
+										display: "flex",
+										flexDirection: "column",
+										gap: "10px",
+										marginTop: "8px",
+									}}
+								>
 									<div>
 										<span style={labelStyle}>Target Tm (°C)</span>
 										<input
@@ -1949,7 +2306,12 @@ export function PrimerTool() {
 								style={inputStyle}
 							>
 								{POLYMERASES.map((p) => (
-									<option key={p} value={p}>{p}{p !== "Custom" ? ` (Ta = Tm${POLYMERASE_OFFSET[p] >= 0 ? "+" : ""}${POLYMERASE_OFFSET[p]}°C)` : " (no offset)"}</option>
+									<option key={p} value={p}>
+										{p}
+										{p !== "Custom"
+											? ` (Ta = Tm${POLYMERASE_OFFSET[p] >= 0 ? "+" : ""}${POLYMERASE_OFFSET[p]}°C)`
+											: " (no offset)"}
+									</option>
 								))}
 							</select>
 						</div>
@@ -1958,12 +2320,16 @@ export function PrimerTool() {
 						<button
 							type="button"
 							onClick={
-							mode === "walking" ? designWalking
-							: mode === "consensus" ? designConservation
-							: mode === "multiplex" ? designMultiplex
-							: (mode === "qpcr" && useExonSpanning) ? designExonJunction
-							: design
-						}
+								mode === "walking"
+									? designWalking
+									: mode === "consensus"
+										? designConservation
+										: mode === "multiplex"
+											? designMultiplex
+											: mode === "qpcr" && useExonSpanning
+												? designExonJunction
+												: design
+							}
 							disabled={
 								mode === "consensus"
 									? !alignmentRaw.trim() || consRunning
@@ -1971,7 +2337,7 @@ export function PrimerTool() {
 										? !multiplexTargets.trim() || multiplexRunning
 										: mode === "walking"
 											? !seq || !!seqError || walkingRunning
-											: (mode === "qpcr" && useExonSpanning)
+											: mode === "qpcr" && useExonSpanning
 												? !seq || !!seqError || exonJunctionRunning
 												: !seq || !!seqError || running
 							}
@@ -1980,24 +2346,58 @@ export function PrimerTool() {
 								fontSize: "13px",
 								fontWeight: 500,
 								padding: "11px 20px",
-								background: (mode === "consensus" ? (!alignmentRaw.trim() || consRunning) : mode === "multiplex" ? (!multiplexTargets.trim() || multiplexRunning) : mode === "walking" ? (!seq || !!seqError || walkingRunning) : (mode === "qpcr" && useExonSpanning) ? (!seq || !!seqError || exonJunctionRunning) : (!seq || !!seqError || running)) ? "#9a9284" : "#1a4731",
+								background: (
+									mode === "consensus"
+										? !alignmentRaw.trim() || consRunning
+										: mode === "multiplex"
+											? !multiplexTargets.trim() || multiplexRunning
+											: mode === "walking"
+												? !seq || !!seqError || walkingRunning
+												: mode === "qpcr" && useExonSpanning
+													? !seq || !!seqError || exonJunctionRunning
+													: !seq || !!seqError || running
+								)
+									? "#9a9284"
+									: "#1a4731",
 								color: "white",
 								border: "none",
 								borderRadius: "3px",
-								cursor: (mode === "consensus" ? (!alignmentRaw.trim() || consRunning) : mode === "multiplex" ? (!multiplexTargets.trim() || multiplexRunning) : mode === "walking" ? (!seq || !!seqError || walkingRunning) : (mode === "qpcr" && useExonSpanning) ? (!seq || !!seqError || exonJunctionRunning) : (!seq || !!seqError || running)) ? "not-allowed" : "pointer",
+								cursor: (
+									mode === "consensus"
+										? !alignmentRaw.trim() || consRunning
+										: mode === "multiplex"
+											? !multiplexTargets.trim() || multiplexRunning
+											: mode === "walking"
+												? !seq || !!seqError || walkingRunning
+												: mode === "qpcr" && useExonSpanning
+													? !seq || !!seqError || exonJunctionRunning
+													: !seq || !!seqError || running
+								)
+									? "not-allowed"
+									: "pointer",
 								transition: "background 0.15s",
 								letterSpacing: "0.02em",
 							}}
 						>
 							{mode === "consensus"
-							? (consRunning ? "Designing…" : "Design Consensus Primers")
-							: mode === "multiplex"
-								? (multiplexRunning ? "Designing…" : "Design Multiplex Panel")
-								: mode === "walking"
-									? (walkingRunning ? "Designing…" : "Design Walking Primers")
-									: (mode === "qpcr" && useExonSpanning)
-										? (exonJunctionRunning ? "Designing…" : "Design Exon-Spanning Primers")
-										: (running ? "Designing…" : "Design Primers")}
+								? consRunning
+									? "Designing…"
+									: "Design Consensus Primers"
+								: mode === "multiplex"
+									? multiplexRunning
+										? "Designing…"
+										: "Design Multiplex Panel"
+									: mode === "walking"
+										? walkingRunning
+											? "Designing…"
+											: "Design Walking Primers"
+										: mode === "qpcr" && useExonSpanning
+											? exonJunctionRunning
+												? "Designing…"
+												: "Design Exon-Spanning Primers"
+											: running
+												? "Designing…"
+												: "Design Primers"}
 						</button>
 
 						{/* Info note */}
@@ -2018,55 +2418,70 @@ export function PrimerTool() {
 				{/* Right: results */}
 				<div style={{ overflowY: "auto", background: "#f5f0e8" }}>
 					{/* Empty state */}
-					{!running && !hasPairs && !warning && !error && !walkingRunning && !walkingResult && !walkingError && !consRunning && !consResult && !consError && !exonJunctionRunning && !exonJunctionResult && !exonJunctionError && !multiplexRunning && !multiplexResult && !multiplexError && (
-						<div
-							style={{
-								display: "flex",
-								flexDirection: "column",
-								alignItems: "center",
-								justifyContent: "center",
-								height: "100%",
-								minHeight: "400px",
-								gap: "14px",
-								padding: "40px",
-							}}
-						>
+					{!running &&
+						!hasPairs &&
+						!warning &&
+						!error &&
+						!walkingRunning &&
+						!walkingResult &&
+						!walkingError &&
+						!consRunning &&
+						!consResult &&
+						!consError &&
+						!exonJunctionRunning &&
+						!exonJunctionResult &&
+						!exonJunctionError &&
+						!multiplexRunning &&
+						!multiplexResult &&
+						!multiplexError && (
 							<div
 								style={{
-									fontFamily: "var(--font-playfair)",
-									fontSize: "52px",
-									color: "#ddd8ce",
-									lineHeight: 1,
-									userSelect: "none",
+									display: "flex",
+									flexDirection: "column",
+									alignItems: "center",
+									justifyContent: "center",
+									height: "100%",
+									minHeight: "400px",
+									gap: "14px",
+									padding: "40px",
 								}}
 							>
-								→←
+								<div
+									style={{
+										fontFamily: "var(--font-playfair)",
+										fontSize: "52px",
+										color: "#ddd8ce",
+										lineHeight: 1,
+										userSelect: "none",
+									}}
+								>
+									→←
+								</div>
+								<p
+									style={{
+										fontFamily: "var(--font-karla)",
+										fontSize: "14px",
+										color: "#9a9284",
+										textAlign: "center",
+										maxWidth: "320px",
+										lineHeight: 1.6,
+									}}
+								>
+									Paste a DNA sequence and click Design Primers to get started.
+								</p>
+								<p
+									style={{
+										fontFamily: "var(--font-courier)",
+										fontSize: "9px",
+										color: "#b8b0a4",
+										textAlign: "center",
+										letterSpacing: "0.06em",
+									}}
+								>
+									PCR · qPCR · Gibson · Golden Gate
+								</p>
 							</div>
-							<p
-								style={{
-									fontFamily: "var(--font-karla)",
-									fontSize: "14px",
-									color: "#9a9284",
-									textAlign: "center",
-									maxWidth: "320px",
-									lineHeight: 1.6,
-								}}
-							>
-								Paste a DNA sequence and click Design Primers to get started.
-							</p>
-							<p
-								style={{
-									fontFamily: "var(--font-courier)",
-									fontSize: "9px",
-									color: "#b8b0a4",
-									textAlign: "center",
-									letterSpacing: "0.06em",
-								}}
-							>
-								PCR · qPCR · Gibson · Golden Gate
-							</p>
-						</div>
-					)}
+						)}
 
 					{/* Running spinner */}
 					{running && (
@@ -2090,7 +2505,9 @@ export function PrimerTool() {
 									animation: "spin 0.7s linear infinite",
 								}}
 							/>
-							<span style={{ fontFamily: "var(--font-courier)", fontSize: "10px", color: "#9a9284" }}>
+							<span
+								style={{ fontFamily: "var(--font-courier)", fontSize: "10px", color: "#9a9284" }}
+							>
 								Evaluating candidates…
 							</span>
 							<style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -2126,10 +2543,26 @@ export function PrimerTool() {
 								borderRadius: "3px",
 							}}
 						>
-							<div style={{ fontFamily: "var(--font-courier)", fontSize: "9px", letterSpacing: "0.1em", color: "#b8933a", marginBottom: "5px" }}>
+							<div
+								style={{
+									fontFamily: "var(--font-courier)",
+									fontSize: "9px",
+									letterSpacing: "0.1em",
+									color: "#b8933a",
+									marginBottom: "5px",
+								}}
+							>
 								NO PAIRS FOUND
 							</div>
-							<div style={{ fontFamily: "var(--font-karla)", fontSize: "13px", color: "#5a5648", lineHeight: 1.6, marginBottom: "12px" }}>
+							<div
+								style={{
+									fontFamily: "var(--font-karla)",
+									fontSize: "13px",
+									color: "#5a5648",
+									lineHeight: 1.6,
+									marginBottom: "12px",
+								}}
+							>
 								{warning}
 							</div>
 							{/* Quick-fix buttons for the most common failure mode */}
@@ -2195,10 +2628,20 @@ export function PrimerTool() {
 									gap: "10px",
 								}}
 							>
-								<span style={{ fontFamily: "var(--font-courier)", fontSize: "9px", letterSpacing: "0.12em", color: "#1a4731", textTransform: "uppercase" }}>
+								<span
+									style={{
+										fontFamily: "var(--font-courier)",
+										fontSize: "9px",
+										letterSpacing: "0.12em",
+										color: "#1a4731",
+										textTransform: "uppercase",
+									}}
+								>
 									{pairs.length} pair{pairs.length !== 1 ? "s" : ""}
 								</span>
-								<span style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: "#b8b0a4" }}>
+								<span
+									style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: "#b8b0a4" }}
+								>
 									· click a pair to highlight in plots
 								</span>
 								<button
@@ -2255,7 +2698,14 @@ export function PrimerTool() {
 								</div>
 
 								{/* Plot tabs */}
-								<div style={{ display: "flex", gap: "0", marginBottom: "16px", borderBottom: "1px solid #ddd8ce" }}>
+								<div
+									style={{
+										display: "flex",
+										gap: "0",
+										marginBottom: "16px",
+										borderBottom: "1px solid #ddd8ce",
+									}}
+								>
 									{(
 										[
 											["heatmap", "Amplicon Structure"],
@@ -2275,7 +2725,8 @@ export function PrimerTool() {
 												padding: "7px 14px",
 												background: "none",
 												border: "none",
-												borderBottom: activePlot === tab ? "2px solid #1a4731" : "2px solid transparent",
+												borderBottom:
+													activePlot === tab ? "2px solid #1a4731" : "2px solid transparent",
 												color: activePlot === tab ? "#1a4731" : "#9a9284",
 												cursor: "pointer",
 												marginBottom: "-1px",
@@ -2288,13 +2739,17 @@ export function PrimerTool() {
 								</div>
 
 								{/* Plot canvases */}
-								<div style={{ background: "#faf7f2", borderRadius: "3px", border: "1px solid #ddd8ce", padding: "12px", display: "inline-block" }}>
+								<div
+									style={{
+										background: "#faf7f2",
+										borderRadius: "3px",
+										border: "1px solid #ddd8ce",
+										padding: "12px",
+										display: "inline-block",
+									}}
+								>
 									{activePlot === "heatmap" && currentPair && (
-										<AmpliconHeatmap
-											pair={currentPair}
-											seq={seq}
-											temperature={tmTarget - 5}
-										/>
+										<AmpliconHeatmap pair={currentPair} seq={seq} temperature={tmTarget - 5} />
 									)}
 									{activePlot === "scatter" && (
 										<PairScatter pairs={pairs} mode={mode === "qpcr" ? "qpcr" : "pcr"} />
@@ -2319,11 +2774,24 @@ export function PrimerTool() {
 									gap: "10px",
 								}}
 							>
-								<span style={{ fontFamily: "var(--font-courier)", fontSize: "9px", letterSpacing: "0.12em", color: "#1a4731", textTransform: "uppercase" }}>
+								<span
+									style={{
+										fontFamily: "var(--font-courier)",
+										fontSize: "9px",
+										letterSpacing: "0.12em",
+										color: "#1a4731",
+										textTransform: "uppercase",
+									}}
+								>
 									{assemblyPairs.length} pair{assemblyPairs.length !== 1 ? "s" : ""}
 								</span>
-								<span style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: "#b8b0a4" }}>
-									· {assemblyMethod === "gibson" ? `${gibsonOverlap}bp Gibson overlap` : `${ggEnzyme} Golden Gate`}
+								<span
+									style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: "#b8b0a4" }}
+								>
+									·{" "}
+									{assemblyMethod === "gibson"
+										? `${gibsonOverlap}bp Gibson overlap`
+										: `${ggEnzyme} Golden Gate`}
 								</span>
 								<button
 									type="button"
@@ -2370,25 +2838,77 @@ export function PrimerTool() {
 
 					{/* Walking / Sanger coverage results */}
 					{walkingRunning && (
-						<div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "200px", gap: "10px" }}>
-							<span style={{ width: "16px", height: "16px", border: "2px solid #ddd8ce", borderTopColor: "#1a4731", borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite" }} />
-							<span style={{ fontFamily: "var(--font-courier)", fontSize: "10px", color: "#9a9284" }}>Designing walking primers…</span>
+						<div
+							style={{
+								display: "flex",
+								alignItems: "center",
+								justifyContent: "center",
+								height: "200px",
+								gap: "10px",
+							}}
+						>
+							<span
+								style={{
+									width: "16px",
+									height: "16px",
+									border: "2px solid #ddd8ce",
+									borderTopColor: "#1a4731",
+									borderRadius: "50%",
+									display: "inline-block",
+									animation: "spin 0.7s linear infinite",
+								}}
+							/>
+							<span
+								style={{ fontFamily: "var(--font-courier)", fontSize: "10px", color: "#9a9284" }}
+							>
+								Designing walking primers…
+							</span>
 						</div>
 					)}
 					{walkingError && (
-						<div style={{ margin: "24px", padding: "14px 16px", background: "rgba(160,40,40,0.06)", border: "1px solid rgba(160,40,40,0.2)", borderRadius: "3px", fontFamily: "var(--font-karla)", fontSize: "13px", color: "#a02828" }}>
+						<div
+							style={{
+								margin: "24px",
+								padding: "14px 16px",
+								background: "rgba(160,40,40,0.06)",
+								border: "1px solid rgba(160,40,40,0.2)",
+								borderRadius: "3px",
+								fontFamily: "var(--font-karla)",
+								fontSize: "13px",
+								color: "#a02828",
+							}}
+						>
 							{walkingError}
 						</div>
 					)}
 					{walkingResult && (
 						<div>
 							{/* Header */}
-							<div style={{ padding: "14px 20px 10px", borderBottom: "1px solid #ddd8ce", display: "flex", alignItems: "center", gap: "10px" }}>
-								<span style={{ fontFamily: "var(--font-courier)", fontSize: "9px", letterSpacing: "0.12em", color: "#1a4731", textTransform: "uppercase" }}>
+							<div
+								style={{
+									padding: "14px 20px 10px",
+									borderBottom: "1px solid #ddd8ce",
+									display: "flex",
+									alignItems: "center",
+									gap: "10px",
+								}}
+							>
+								<span
+									style={{
+										fontFamily: "var(--font-courier)",
+										fontSize: "9px",
+										letterSpacing: "0.12em",
+										color: "#1a4731",
+										textTransform: "uppercase",
+									}}
+								>
 									{walkingResult.primers.length} primers
 								</span>
-								<span style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: "#b8b0a4" }}>
-									· {walkingResult.gaps.length === 0
+								<span
+									style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: "#b8b0a4" }}
+								>
+									·{" "}
+									{walkingResult.gaps.length === 0
 										? "✓ complete coverage"
 										: `${walkingResult.gaps.length} gap${walkingResult.gaps.length > 1 ? "s" : ""} — increase overlap`}
 								</span>
@@ -2398,15 +2918,30 @@ export function PrimerTool() {
 										const rows = ["Name,Sequence,Position,Direction,Tm,Ta,Notes"];
 										for (const [i, p] of walkingResult.primers.entries()) {
 											const ta = computeTa(p.tm, polymerase).toFixed(0);
-											rows.push(`Walk${i + 1}_${p.direction === "fwd" ? "Fwd" : "Rev"},${p.seq},${p.position + 1},${p.direction},${p.tm.toFixed(1)},${ta},"read ${p.position + 1}-${p.readEnd}"`);
+											rows.push(
+												`Walk${i + 1}_${p.direction === "fwd" ? "Fwd" : "Rev"},${p.seq},${p.position + 1},${p.direction},${p.tm.toFixed(1)},${ta},"read ${p.position + 1}-${p.readEnd}"`,
+											);
 										}
 										const blob = new Blob([rows.join("\n")], { type: "text/csv" });
 										const url = URL.createObjectURL(blob);
 										const a = document.createElement("a");
-										a.href = url; a.download = "walking-primers.csv"; a.click();
+										a.href = url;
+										a.download = "walking-primers.csv";
+										a.click();
 										URL.revokeObjectURL(url);
 									}}
-									style={{ marginLeft: "auto", fontFamily: "var(--font-courier)", fontSize: "9px", letterSpacing: "0.06em", padding: "4px 10px", background: "none", border: "1px solid #ddd8ce", borderRadius: "3px", color: "#5a5648", cursor: "pointer" }}
+									style={{
+										marginLeft: "auto",
+										fontFamily: "var(--font-courier)",
+										fontSize: "9px",
+										letterSpacing: "0.06em",
+										padding: "4px 10px",
+										background: "none",
+										border: "1px solid #ddd8ce",
+										borderRadius: "3px",
+										color: "#5a5648",
+										cursor: "pointer",
+									}}
 								>
 									↓ CSV
 								</button>
@@ -2414,7 +2949,16 @@ export function PrimerTool() {
 
 							{/* Coverage map */}
 							<div style={{ padding: "16px 20px" }}>
-								<div style={{ fontFamily: "var(--font-courier)", fontSize: "9px", letterSpacing: "0.12em", color: "#9a9284", textTransform: "uppercase", marginBottom: "10px" }}>
+								<div
+									style={{
+										fontFamily: "var(--font-courier)",
+										fontSize: "9px",
+										letterSpacing: "0.12em",
+										color: "#9a9284",
+										textTransform: "uppercase",
+										marginBottom: "10px",
+									}}
+								>
 									Coverage map
 								</div>
 								<CoverageMap
@@ -2442,22 +2986,62 @@ export function PrimerTool() {
 												cursor: "pointer",
 											}}
 										>
-											<div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "5px", flexWrap: "wrap" }}>
-												<span style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: isSelected ? "#1a4731" : "#9a9284", fontWeight: isSelected ? 700 : 400 }}>
+											<div
+												style={{
+													display: "flex",
+													alignItems: "center",
+													gap: "6px",
+													marginBottom: "5px",
+													flexWrap: "wrap",
+												}}
+											>
+												<span
+													style={{
+														fontFamily: "var(--font-courier)",
+														fontSize: "9px",
+														color: isSelected ? "#1a4731" : "#9a9284",
+														fontWeight: isSelected ? 700 : 400,
+													}}
+												>
 													#{i + 1}
 												</span>
-												<span style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: "#5a5648" }}>
+												<span
+													style={{
+														fontFamily: "var(--font-courier)",
+														fontSize: "9px",
+														color: "#5a5648",
+													}}
+												>
 													pos {primer.position + 1}
 												</span>
 												<span style={{ color: "#ddd8ce" }}>·</span>
-												<span style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: "#5a5648" }}>
+												<span
+													style={{
+														fontFamily: "var(--font-courier)",
+														fontSize: "9px",
+														color: "#5a5648",
+													}}
+												>
 													Tm {primer.tm.toFixed(1)}°
 												</span>
 												<span style={{ color: "#ddd8ce" }}>·</span>
-												<span style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: "#1a4731", fontWeight: 600 }}>
+												<span
+													style={{
+														fontFamily: "var(--font-courier)",
+														fontSize: "9px",
+														color: "#1a4731",
+														fontWeight: 600,
+													}}
+												>
 													Ta {ta.toFixed(0)}°C
 												</span>
-												<span style={{ fontFamily: "var(--font-courier)", fontSize: "8px", color: "#b8b0a4" }}>
+												<span
+													style={{
+														fontFamily: "var(--font-courier)",
+														fontSize: "8px",
+														color: "#b8b0a4",
+													}}
+												>
 													read → {primer.readEnd}
 												</span>
 												<button
@@ -2466,17 +3050,40 @@ export function PrimerTool() {
 														e.stopPropagation();
 														void navigator.clipboard.writeText(primer.seq);
 													}}
-													style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-courier)", fontSize: "9px", color: "#9a9284" }}
+													style={{
+														marginLeft: "auto",
+														background: "none",
+														border: "none",
+														cursor: "pointer",
+														fontFamily: "var(--font-courier)",
+														fontSize: "9px",
+														color: "#9a9284",
+													}}
 												>
 													copy
 												</button>
 											</div>
-											<div style={{ fontFamily: "var(--font-courier)", fontSize: "10px", color: "#1c1a16", letterSpacing: "0.04em", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
-												{primer.direction === "fwd" ? "→ " : "← "}{primer.seq}
+											<div
+												style={{
+													fontFamily: "var(--font-courier)",
+													fontSize: "10px",
+													color: "#1c1a16",
+													letterSpacing: "0.04em",
+													overflow: "hidden",
+													whiteSpace: "nowrap",
+													textOverflow: "ellipsis",
+												}}
+											>
+												{primer.direction === "fwd" ? "→ " : "← "}
+												{primer.seq}
 											</div>
 											{specState !== "idle" && (
 												<div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
-													<SpecBadge label={primer.direction === "fwd" ? "Fwd" : "Rev"} hits={specResults?.get(primer.seq)} loading={specState === "loading"} />
+													<SpecBadge
+														label={primer.direction === "fwd" ? "Fwd" : "Rev"}
+														hits={specResults?.get(primer.seq)}
+														loading={specState === "loading"}
+													/>
 												</div>
 											)}
 										</div>
@@ -2488,46 +3095,119 @@ export function PrimerTool() {
 
 					{/* Conservation / consensus results */}
 					{consRunning && (
-						<div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "200px", gap: "10px" }}>
-							<span style={{ width: "16px", height: "16px", border: "2px solid #ddd8ce", borderTopColor: "#1a4731", borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite" }} />
-							<span style={{ fontFamily: "var(--font-courier)", fontSize: "10px", color: "#9a9284" }}>Scanning alignment…</span>
+						<div
+							style={{
+								display: "flex",
+								alignItems: "center",
+								justifyContent: "center",
+								height: "200px",
+								gap: "10px",
+							}}
+						>
+							<span
+								style={{
+									width: "16px",
+									height: "16px",
+									border: "2px solid #ddd8ce",
+									borderTopColor: "#1a4731",
+									borderRadius: "50%",
+									display: "inline-block",
+									animation: "spin 0.7s linear infinite",
+								}}
+							/>
+							<span
+								style={{ fontFamily: "var(--font-courier)", fontSize: "10px", color: "#9a9284" }}
+							>
+								Scanning alignment…
+							</span>
 						</div>
 					)}
 					{consError && (
-						<div style={{ margin: "24px", padding: "14px 16px", background: "rgba(160,40,40,0.06)", border: "1px solid rgba(160,40,40,0.2)", borderRadius: "3px", fontFamily: "var(--font-karla)", fontSize: "13px", color: "#a02828" }}>
+						<div
+							style={{
+								margin: "24px",
+								padding: "14px 16px",
+								background: "rgba(160,40,40,0.06)",
+								border: "1px solid rgba(160,40,40,0.2)",
+								borderRadius: "3px",
+								fontFamily: "var(--font-karla)",
+								fontSize: "13px",
+								color: "#a02828",
+							}}
+						>
 							{consError}
 						</div>
 					)}
 					{consResult && (
 						<div>
 							{/* Header */}
-							<div style={{ padding: "14px 20px 10px", borderBottom: "1px solid #ddd8ce", display: "flex", alignItems: "center", gap: "10px" }}>
-								<span style={{ fontFamily: "var(--font-courier)", fontSize: "9px", letterSpacing: "0.12em", color: "#1a4731", textTransform: "uppercase" }}>
+							<div
+								style={{
+									padding: "14px 20px 10px",
+									borderBottom: "1px solid #ddd8ce",
+									display: "flex",
+									alignItems: "center",
+									gap: "10px",
+								}}
+							>
+								<span
+									style={{
+										fontFamily: "var(--font-courier)",
+										fontSize: "9px",
+										letterSpacing: "0.12em",
+										color: "#1a4731",
+										textTransform: "uppercase",
+									}}
+								>
 									{consResult.primers.length} primers
 								</span>
-								<span style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: "#b8b0a4" }}>
+								<span
+									style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: "#b8b0a4" }}
+								>
 									· {consResult.sequences.length} sequences · {consResult.alignmentLen} bp alignment
 								</span>
 								{consResult.warning && (
-									<span style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: "#b8933a" }}>
+									<span
+										style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: "#b8933a" }}
+									>
 										⚠ {consResult.warning}
 									</span>
 								)}
 								<button
 									type="button"
 									onClick={() => {
-										const rows = ["Name,Sequence,Position,Direction,Tm,Ta,Conservation,Degenerate,Notes"];
+										const rows = [
+											"Name,Sequence,Position,Direction,Tm,Ta,Conservation,Degenerate,Notes",
+										];
 										for (const [i, p] of consResult.primers.entries()) {
 											const ta = computeTa(p.tm, polymerase).toFixed(0);
-											const mmNote = p.mismatches.map((m) => `${m.count}mm:${m.nSeqs}seqs`).join(" ");
-											rows.push(`Cons${i + 1}_${p.direction === "fwd" ? "Fwd" : "Rev"},${p.seq},${p.alignPos + 1},${p.direction},${p.tm.toFixed(1)},${ta},${(p.conservation * 100).toFixed(0)}%,${p.numDegenerate},"${mmNote}"`);
+											const mmNote = p.mismatches
+												.map((m) => `${m.count}mm:${m.nSeqs}seqs`)
+												.join(" ");
+											rows.push(
+												`Cons${i + 1}_${p.direction === "fwd" ? "Fwd" : "Rev"},${p.seq},${p.alignPos + 1},${p.direction},${p.tm.toFixed(1)},${ta},${(p.conservation * 100).toFixed(0)}%,${p.numDegenerate},"${mmNote}"`,
+											);
 										}
 										const blob = new Blob([rows.join("\n")], { type: "text/csv" });
 										const url = URL.createObjectURL(blob);
-										const a = document.createElement("a"); a.href = url; a.download = "consensus-primers.csv"; a.click();
+										const a = document.createElement("a");
+										a.href = url;
+										a.download = "consensus-primers.csv";
+										a.click();
 										URL.revokeObjectURL(url);
 									}}
-									style={{ marginLeft: "auto", fontFamily: "var(--font-courier)", fontSize: "9px", letterSpacing: "0.06em", padding: "4px 10px", background: "none", border: "1px solid #ddd8ce", borderRadius: "3px", color: "#5a5648", cursor: "pointer" }}
+									style={{
+										marginLeft: "auto",
+										fontFamily: "var(--font-courier)",
+										fontSize: "9px",
+										letterSpacing: "0.06em",
+										padding: "4px 10px",
+										background: "none",
+										border: "1px solid #ddd8ce",
+										borderRadius: "3px",
+										color: "#5a5648",
+										cursor: "pointer",
+									}}
 								>
 									↓ CSV
 								</button>
@@ -2535,7 +3215,16 @@ export function PrimerTool() {
 
 							{/* Conservation track */}
 							<div style={{ padding: "16px 20px" }}>
-								<div style={{ fontFamily: "var(--font-courier)", fontSize: "9px", letterSpacing: "0.12em", color: "#9a9284", textTransform: "uppercase", marginBottom: "10px" }}>
+								<div
+									style={{
+										fontFamily: "var(--font-courier)",
+										fontSize: "9px",
+										letterSpacing: "0.12em",
+										color: "#9a9284",
+										textTransform: "uppercase",
+										marginBottom: "10px",
+									}}
+								>
 									Conservation track
 								</div>
 								<ConservationTrack
@@ -2567,29 +3256,118 @@ export function PrimerTool() {
 												cursor: "pointer",
 											}}
 										>
-											<div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "5px", flexWrap: "wrap" }}>
-												<span style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: isSelected ? "#1a4731" : "#9a9284", fontWeight: isSelected ? 700 : 400 }}>#{i + 1}</span>
-												<span style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: "#5a5648" }}>pos {primer.alignPos + 1}</span>
+											<div
+												style={{
+													display: "flex",
+													alignItems: "center",
+													gap: "6px",
+													marginBottom: "5px",
+													flexWrap: "wrap",
+												}}
+											>
+												<span
+													style={{
+														fontFamily: "var(--font-courier)",
+														fontSize: "9px",
+														color: isSelected ? "#1a4731" : "#9a9284",
+														fontWeight: isSelected ? 700 : 400,
+													}}
+												>
+													#{i + 1}
+												</span>
+												<span
+													style={{
+														fontFamily: "var(--font-courier)",
+														fontSize: "9px",
+														color: "#5a5648",
+													}}
+												>
+													pos {primer.alignPos + 1}
+												</span>
 												<span style={{ color: "#ddd8ce" }}>·</span>
-												<span style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: "#1a4731", fontWeight: 600 }}>
+												<span
+													style={{
+														fontFamily: "var(--font-courier)",
+														fontSize: "9px",
+														color: "#1a4731",
+														fontWeight: 600,
+													}}
+												>
 													{(primer.conservation * 100).toFixed(0)}% conserved
 												</span>
 												<span style={{ color: "#ddd8ce" }}>·</span>
-												<span style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: "#9a9284" }}>Tm {primer.tm.toFixed(1)}°</span>
+												<span
+													style={{
+														fontFamily: "var(--font-courier)",
+														fontSize: "9px",
+														color: "#9a9284",
+													}}
+												>
+													Tm {primer.tm.toFixed(1)}°
+												</span>
 												<span style={{ color: "#ddd8ce" }}>·</span>
-												<span style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: "#1a4731", fontWeight: 600 }}>Ta {ta.toFixed(0)}°C</span>
+												<span
+													style={{
+														fontFamily: "var(--font-courier)",
+														fontSize: "9px",
+														color: "#1a4731",
+														fontWeight: 600,
+													}}
+												>
+													Ta {ta.toFixed(0)}°C
+												</span>
 												{primer.numDegenerate > 0 && (
-													<span style={{ fontFamily: "var(--font-courier)", fontSize: "8px", color: "#b8933a" }}>{primer.numDegenerate} deg</span>
+													<span
+														style={{
+															fontFamily: "var(--font-courier)",
+															fontSize: "8px",
+															color: "#b8933a",
+														}}
+													>
+														{primer.numDegenerate} deg
+													</span>
 												)}
-												<span style={{ fontFamily: "var(--font-courier)", fontSize: "8px", color: "#b8b0a4" }}>{mmNote}</span>
+												<span
+													style={{
+														fontFamily: "var(--font-courier)",
+														fontSize: "8px",
+														color: "#b8b0a4",
+													}}
+												>
+													{mmNote}
+												</span>
 												<button
 													type="button"
-													onClick={(ev) => { ev.stopPropagation(); void navigator.clipboard.writeText(primer.seq); }}
-													style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-courier)", fontSize: "9px", color: "#9a9284" }}
-												>copy</button>
+													onClick={(ev) => {
+														ev.stopPropagation();
+														void navigator.clipboard.writeText(primer.seq);
+													}}
+													style={{
+														marginLeft: "auto",
+														background: "none",
+														border: "none",
+														cursor: "pointer",
+														fontFamily: "var(--font-courier)",
+														fontSize: "9px",
+														color: "#9a9284",
+													}}
+												>
+													copy
+												</button>
 											</div>
-											<div style={{ fontFamily: "var(--font-courier)", fontSize: "10px", color, letterSpacing: "0.04em", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
-												{primer.direction === "fwd" ? "→ " : "← "}{primer.seq}
+											<div
+												style={{
+													fontFamily: "var(--font-courier)",
+													fontSize: "10px",
+													color,
+													letterSpacing: "0.04em",
+													overflow: "hidden",
+													whiteSpace: "nowrap",
+													textOverflow: "ellipsis",
+												}}
+											>
+												{primer.direction === "fwd" ? "→ " : "← "}
+												{primer.seq}
 											</div>
 										</div>
 									);
@@ -2600,100 +3378,379 @@ export function PrimerTool() {
 
 					{/* Exon-junction qPCR results */}
 					{exonJunctionRunning && (
-						<div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "200px", gap: "10px" }}>
-							<span style={{ width: "16px", height: "16px", border: "2px solid #ddd8ce", borderTopColor: "#1a4731", borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite" }} />
-							<span style={{ fontFamily: "var(--font-courier)", fontSize: "10px", color: "#9a9284" }}>Designing exon-spanning primers…</span>
+						<div
+							style={{
+								display: "flex",
+								alignItems: "center",
+								justifyContent: "center",
+								height: "200px",
+								gap: "10px",
+							}}
+						>
+							<span
+								style={{
+									width: "16px",
+									height: "16px",
+									border: "2px solid #ddd8ce",
+									borderTopColor: "#1a4731",
+									borderRadius: "50%",
+									display: "inline-block",
+									animation: "spin 0.7s linear infinite",
+								}}
+							/>
+							<span
+								style={{ fontFamily: "var(--font-courier)", fontSize: "10px", color: "#9a9284" }}
+							>
+								Designing exon-spanning primers…
+							</span>
 						</div>
 					)}
 					{exonJunctionError && (
-						<div style={{ margin: "24px", padding: "14px 16px", background: "rgba(160,40,40,0.06)", border: "1px solid rgba(160,40,40,0.2)", borderRadius: "3px", fontFamily: "var(--font-karla)", fontSize: "13px", color: "#a02828" }}>
+						<div
+							style={{
+								margin: "24px",
+								padding: "14px 16px",
+								background: "rgba(160,40,40,0.06)",
+								border: "1px solid rgba(160,40,40,0.2)",
+								borderRadius: "3px",
+								fontFamily: "var(--font-karla)",
+								fontSize: "13px",
+								color: "#a02828",
+							}}
+						>
 							{exonJunctionError}
 						</div>
 					)}
 					{exonJunctionResult && (
 						<div>
-							<div style={{ padding: "14px 20px 10px", borderBottom: "1px solid #ddd8ce", display: "flex", alignItems: "center", gap: "10px" }}>
-								<span style={{ fontFamily: "var(--font-courier)", fontSize: "9px", letterSpacing: "0.12em", color: "#1a4731", textTransform: "uppercase" }}>
+							<div
+								style={{
+									padding: "14px 20px 10px",
+									borderBottom: "1px solid #ddd8ce",
+									display: "flex",
+									alignItems: "center",
+									gap: "10px",
+								}}
+							>
+								<span
+									style={{
+										fontFamily: "var(--font-courier)",
+										fontSize: "9px",
+										letterSpacing: "0.12em",
+										color: "#1a4731",
+										textTransform: "uppercase",
+									}}
+								>
 									{exonJunctionResult.pairs.length} exon-spanning pairs
 								</span>
-								<span style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: "#b8b0a4" }}>
+								<span
+									style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: "#b8b0a4" }}
+								>
 									· gDNA-specific
 								</span>
 								<button
 									type="button"
 									onClick={() => {
-										const rows = ["Name,Sequence,Type,Position,Tm,Ta,Junction,Upstream,Downstream,ProductSize"];
+										const rows = [
+											"Name,Sequence,Type,Position,Tm,Ta,Junction,Upstream,Downstream,ProductSize",
+										];
 										for (const [i, pair] of exonJunctionResult.pairs.entries()) {
 											const ta = computeTa(pair.fwd.tm, polymerase).toFixed(0);
 											const taRev = computeTa(pair.rev.tm, polymerase).toFixed(0);
-											rows.push(`Pair${i+1}_Fwd,${pair.fwd.seq},spanning,${pair.fwd.start+1},${pair.fwd.tm.toFixed(1)},${ta},${pair.fwd.junctionPos+1},${pair.fwd.upstreamBases}bp,${pair.fwd.downstreamBases}bp,${pair.productSize}`);
-											rows.push(`Pair${i+1}_Rev,${pair.rev.seq},normal,${pair.rev.start+1},${pair.rev.tm.toFixed(1)},${taRev},,,, ${pair.productSize}bp amplicon`);
+											rows.push(
+												`Pair${i + 1}_Fwd,${pair.fwd.seq},spanning,${pair.fwd.start + 1},${pair.fwd.tm.toFixed(1)},${ta},${pair.fwd.junctionPos + 1},${pair.fwd.upstreamBases}bp,${pair.fwd.downstreamBases}bp,${pair.productSize}`,
+											);
+											rows.push(
+												`Pair${i + 1}_Rev,${pair.rev.seq},normal,${pair.rev.start + 1},${pair.rev.tm.toFixed(1)},${taRev},,,, ${pair.productSize}bp amplicon`,
+											);
 										}
 										const blob = new Blob([rows.join("\n")], { type: "text/csv" });
 										const url = URL.createObjectURL(blob);
-										const a = document.createElement("a"); a.href = url; a.download = "exon-junction-primers.csv"; a.click();
+										const a = document.createElement("a");
+										a.href = url;
+										a.download = "exon-junction-primers.csv";
+										a.click();
 										URL.revokeObjectURL(url);
 									}}
-									style={{ marginLeft: "auto", fontFamily: "var(--font-courier)", fontSize: "9px", letterSpacing: "0.06em", padding: "4px 10px", background: "none", border: "1px solid #ddd8ce", borderRadius: "3px", color: "#5a5648", cursor: "pointer" }}
+									style={{
+										marginLeft: "auto",
+										fontFamily: "var(--font-courier)",
+										fontSize: "9px",
+										letterSpacing: "0.06em",
+										padding: "4px 10px",
+										background: "none",
+										border: "1px solid #ddd8ce",
+										borderRadius: "3px",
+										color: "#5a5648",
+										cursor: "pointer",
+									}}
 								>
 									↓ CSV
 								</button>
 							</div>
 							{exonJunctionResult.warning && (
-								<div style={{ margin: "24px", padding: "14px 16px", background: "rgba(184,147,58,0.07)", border: "1px solid rgba(184,147,58,0.25)", borderRadius: "3px" }}>
-									<div style={{ fontFamily: "var(--font-courier)", fontSize: "9px", letterSpacing: "0.1em", color: "#b8933a", marginBottom: "5px" }}>NO PAIRS FOUND</div>
-									<div style={{ fontFamily: "var(--font-karla)", fontSize: "13px", color: "#5a5648", lineHeight: 1.6 }}>{exonJunctionResult.warning}</div>
+								<div
+									style={{
+										margin: "24px",
+										padding: "14px 16px",
+										background: "rgba(184,147,58,0.07)",
+										border: "1px solid rgba(184,147,58,0.25)",
+										borderRadius: "3px",
+									}}
+								>
+									<div
+										style={{
+											fontFamily: "var(--font-courier)",
+											fontSize: "9px",
+											letterSpacing: "0.1em",
+											color: "#b8933a",
+											marginBottom: "5px",
+										}}
+									>
+										NO PAIRS FOUND
+									</div>
+									<div
+										style={{
+											fontFamily: "var(--font-karla)",
+											fontSize: "13px",
+											color: "#5a5648",
+											lineHeight: 1.6,
+										}}
+									>
+										{exonJunctionResult.warning}
+									</div>
 								</div>
 							)}
 							{exonJunctionResult.pairs.map((pair, i) => {
 								const ta = computeTa(pair.fwd.tm, polymerase);
 								const taRev = computeTa(pair.rev.tm, polymerase);
 								return (
-									<div key={i} style={{ padding: "14px 20px", borderBottom: "1px solid rgba(221,216,206,0.5)", background: i === 0 ? "rgba(26,71,49,0.03)" : "transparent" }}>
-										<div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "10px", flexWrap: "wrap" }}>
-											<span style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: i === 0 ? "#1a4731" : "#9a9284", fontWeight: i === 0 ? 700 : 400 }}>#{i + 1}</span>
-											<span style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: "#5a5648" }}>{pair.productSize} bp amplicon</span>
+									<div
+										key={i}
+										style={{
+											padding: "14px 20px",
+											borderBottom: "1px solid rgba(221,216,206,0.5)",
+											background: i === 0 ? "rgba(26,71,49,0.03)" : "transparent",
+										}}
+									>
+										<div
+											style={{
+												display: "flex",
+												alignItems: "center",
+												gap: "6px",
+												marginBottom: "10px",
+												flexWrap: "wrap",
+											}}
+										>
+											<span
+												style={{
+													fontFamily: "var(--font-courier)",
+													fontSize: "9px",
+													color: i === 0 ? "#1a4731" : "#9a9284",
+													fontWeight: i === 0 ? 700 : 400,
+												}}
+											>
+												#{i + 1}
+											</span>
+											<span
+												style={{
+													fontFamily: "var(--font-courier)",
+													fontSize: "9px",
+													color: "#5a5648",
+												}}
+											>
+												{pair.productSize} bp amplicon
+											</span>
 											<span style={{ color: "#ddd8ce" }}>·</span>
-											<span style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: pair.tmDiff > 2 ? "#b8933a" : "#9a9284" }}>ΔTm {pair.tmDiff.toFixed(1)}°</span>
-											<button type="button" onClick={() => void navigator.clipboard.writeText(`Fwd: ${pair.fwd.seq}\nRev: ${pair.rev.seq}`)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-courier)", fontSize: "9px", color: "#9a9284" }}>copy pair</button>
+											<span
+												style={{
+													fontFamily: "var(--font-courier)",
+													fontSize: "9px",
+													color: pair.tmDiff > 2 ? "#b8933a" : "#9a9284",
+												}}
+											>
+												ΔTm {pair.tmDiff.toFixed(1)}°
+											</span>
+											<button
+												type="button"
+												onClick={() =>
+													void navigator.clipboard.writeText(
+														`Fwd: ${pair.fwd.seq}\nRev: ${pair.rev.seq}`,
+													)
+												}
+												style={{
+													marginLeft: "auto",
+													background: "none",
+													border: "none",
+													cursor: "pointer",
+													fontFamily: "var(--font-courier)",
+													fontSize: "9px",
+													color: "#9a9284",
+												}}
+											>
+												copy pair
+											</button>
 										</div>
 										{/* Forward spanning primer */}
-										<div style={{ marginBottom: "8px", padding: "8px 10px", background: "rgba(8,145,178,0.05)", border: "1px solid rgba(8,145,178,0.2)", borderRadius: "3px" }}>
-											<div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "5px", flexWrap: "wrap" }}>
-												<span style={{ fontFamily: "var(--font-courier)", fontSize: "8px", color: "#0891b2", fontWeight: 700, letterSpacing: "0.06em" }}>FWD · SPANS JUNCTION</span>
-												<span style={{ fontFamily: "var(--font-courier)", fontSize: "8px", color: "#5a5648" }}>junction pos {pair.fwd.junctionPos + 1}</span>
-												<span style={{ fontFamily: "var(--font-courier)", fontSize: "8px", color: "#9a9284" }}>{pair.fwd.upstreamBases}bp ← | → {pair.fwd.downstreamBases}bp</span>
-												<span style={{ fontFamily: "var(--font-courier)", fontSize: "8px", color: "#1a4731", fontWeight: 600 }}>Tm {pair.fwd.tm.toFixed(1)}° · Ta {ta.toFixed(0)}°C</span>
+										<div
+											style={{
+												marginBottom: "8px",
+												padding: "8px 10px",
+												background: "rgba(8,145,178,0.05)",
+												border: "1px solid rgba(8,145,178,0.2)",
+												borderRadius: "3px",
+											}}
+										>
+											<div
+												style={{
+													display: "flex",
+													alignItems: "center",
+													gap: "6px",
+													marginBottom: "5px",
+													flexWrap: "wrap",
+												}}
+											>
+												<span
+													style={{
+														fontFamily: "var(--font-courier)",
+														fontSize: "8px",
+														color: "#0891b2",
+														fontWeight: 700,
+														letterSpacing: "0.06em",
+													}}
+												>
+													FWD · SPANS JUNCTION
+												</span>
+												<span
+													style={{
+														fontFamily: "var(--font-courier)",
+														fontSize: "8px",
+														color: "#5a5648",
+													}}
+												>
+													junction pos {pair.fwd.junctionPos + 1}
+												</span>
+												<span
+													style={{
+														fontFamily: "var(--font-courier)",
+														fontSize: "8px",
+														color: "#9a9284",
+													}}
+												>
+													{pair.fwd.upstreamBases}bp ← | → {pair.fwd.downstreamBases}bp
+												</span>
+												<span
+													style={{
+														fontFamily: "var(--font-courier)",
+														fontSize: "8px",
+														color: "#1a4731",
+														fontWeight: 600,
+													}}
+												>
+													Tm {pair.fwd.tm.toFixed(1)}° · Ta {ta.toFixed(0)}°C
+												</span>
 											</div>
 											{/* Junction visualisation: color-coded upstream|downstream split */}
 											<div
-												style={{ fontFamily: "var(--font-courier)", fontSize: "10px", letterSpacing: "0.04em", cursor: "pointer" }}
+												style={{
+													fontFamily: "var(--font-courier)",
+													fontSize: "10px",
+													letterSpacing: "0.04em",
+													cursor: "pointer",
+												}}
 												onClick={() => void navigator.clipboard.writeText(pair.fwd.seq)}
 												title="Click to copy"
 											>
-												<span style={{ color: "#5a5648" }}>{pair.fwd.seq.slice(0, pair.fwd.upstreamBases)}</span>
+												<span style={{ color: "#5a5648" }}>
+													{pair.fwd.seq.slice(0, pair.fwd.upstreamBases)}
+												</span>
 												<span style={{ color: "#b8b0a4", fontSize: "9px" }}>┃</span>
-												<span style={{ color: "#0891b2", fontWeight: 600 }}>{pair.fwd.seq.slice(pair.fwd.upstreamBases)}</span>
-											</div>
-											<div style={{ fontFamily: "var(--font-courier)", fontSize: "8px", color: "#9a9284", marginTop: "3px" }}>
-												gray = exon N · blue = exon N+1 (3′ end) · click to copy
-										</div>
-										{specState !== "idle" && <div style={{ marginTop: "4px" }}><SpecBadge label="Fwd" hits={specResults?.get(pair.fwd.seq)} loading={specState === "loading"} /></div>}
-																				</div>
-										{/* Reverse primer */}
-										<div style={{ padding: "8px 10px", background: "rgba(180,83,9,0.04)", border: "1px solid rgba(180,83,9,0.15)", borderRadius: "3px" }}>
-											<div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px", flexWrap: "wrap" }}>
-												<span style={{ fontFamily: "var(--font-courier)", fontSize: "8px", color: "#b45309", fontWeight: 700, letterSpacing: "0.06em" }}>REV</span>
-												<span style={{ fontFamily: "var(--font-courier)", fontSize: "8px", color: "#9a9284" }}>pos {pair.rev.start + 1} · Tm {pair.rev.tm.toFixed(1)}° · Ta {taRev.toFixed(0)}°C</span>
+												<span style={{ color: "#0891b2", fontWeight: 600 }}>
+													{pair.fwd.seq.slice(pair.fwd.upstreamBases)}
+												</span>
 											</div>
 											<div
-												style={{ fontFamily: "var(--font-courier)", fontSize: "10px", color: "#b45309", letterSpacing: "0.04em", cursor: "pointer" }}
+												style={{
+													fontFamily: "var(--font-courier)",
+													fontSize: "8px",
+													color: "#9a9284",
+													marginTop: "3px",
+												}}
+											>
+												gray = exon N · blue = exon N+1 (3′ end) · click to copy
+											</div>
+											{specState !== "idle" && (
+												<div style={{ marginTop: "4px" }}>
+													<SpecBadge
+														label="Fwd"
+														hits={specResults?.get(pair.fwd.seq)}
+														loading={specState === "loading"}
+													/>
+												</div>
+											)}
+										</div>
+										{/* Reverse primer */}
+										<div
+											style={{
+												padding: "8px 10px",
+												background: "rgba(180,83,9,0.04)",
+												border: "1px solid rgba(180,83,9,0.15)",
+												borderRadius: "3px",
+											}}
+										>
+											<div
+												style={{
+													display: "flex",
+													alignItems: "center",
+													gap: "6px",
+													marginBottom: "4px",
+													flexWrap: "wrap",
+												}}
+											>
+												<span
+													style={{
+														fontFamily: "var(--font-courier)",
+														fontSize: "8px",
+														color: "#b45309",
+														fontWeight: 700,
+														letterSpacing: "0.06em",
+													}}
+												>
+													REV
+												</span>
+												<span
+													style={{
+														fontFamily: "var(--font-courier)",
+														fontSize: "8px",
+														color: "#9a9284",
+													}}
+												>
+													pos {pair.rev.start + 1} · Tm {pair.rev.tm.toFixed(1)}° · Ta{" "}
+													{taRev.toFixed(0)}°C
+												</span>
+											</div>
+											<div
+												style={{
+													fontFamily: "var(--font-courier)",
+													fontSize: "10px",
+													color: "#b45309",
+													letterSpacing: "0.04em",
+													cursor: "pointer",
+												}}
 												onClick={() => void navigator.clipboard.writeText(pair.rev.seq)}
 												title="Click to copy"
 											>
 												{pair.rev.seq}
 											</div>
-											{specState !== "idle" && <div style={{ marginTop: "4px" }}><SpecBadge label="Rev" hits={specResults?.get(pair.rev.seq)} loading={specState === "loading"} /></div>}
+											{specState !== "idle" && (
+												<div style={{ marginTop: "4px" }}>
+													<SpecBadge
+														label="Rev"
+														hits={specResults?.get(pair.rev.seq)}
+														loading={specState === "loading"}
+													/>
+												</div>
+											)}
 										</div>
 									</div>
 								);
@@ -2703,57 +3760,158 @@ export function PrimerTool() {
 
 					{/* Multiplex results */}
 					{multiplexRunning && (
-						<div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "200px", gap: "10px" }}>
-							<span style={{ width: "16px", height: "16px", border: "2px solid #ddd8ce", borderTopColor: "#1a4731", borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite" }} />
-							<span style={{ fontFamily: "var(--font-courier)", fontSize: "10px", color: "#9a9284" }}>Designing multiplex panel…</span>
+						<div
+							style={{
+								display: "flex",
+								alignItems: "center",
+								justifyContent: "center",
+								height: "200px",
+								gap: "10px",
+							}}
+						>
+							<span
+								style={{
+									width: "16px",
+									height: "16px",
+									border: "2px solid #ddd8ce",
+									borderTopColor: "#1a4731",
+									borderRadius: "50%",
+									display: "inline-block",
+									animation: "spin 0.7s linear infinite",
+								}}
+							/>
+							<span
+								style={{ fontFamily: "var(--font-courier)", fontSize: "10px", color: "#9a9284" }}
+							>
+								Designing multiplex panel…
+							</span>
 						</div>
 					)}
 					{multiplexError && (
-						<div style={{ margin: "24px", padding: "14px 16px", background: "rgba(160,40,40,0.06)", border: "1px solid rgba(160,40,40,0.2)", borderRadius: "3px", fontFamily: "var(--font-karla)", fontSize: "13px", color: "#a02828" }}>
+						<div
+							style={{
+								margin: "24px",
+								padding: "14px 16px",
+								background: "rgba(160,40,40,0.06)",
+								border: "1px solid rgba(160,40,40,0.2)",
+								borderRadius: "3px",
+								fontFamily: "var(--font-karla)",
+								fontSize: "13px",
+								color: "#a02828",
+							}}
+						>
 							{multiplexError}
 						</div>
 					)}
 					{multiplexResult && (
 						<div>
-							<div style={{ padding: "14px 20px 10px", borderBottom: "1px solid #ddd8ce", display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-								<span style={{ fontFamily: "var(--font-courier)", fontSize: "9px", letterSpacing: "0.12em", color: "#1a4731", textTransform: "uppercase" }}>
-									{multiplexResult.pairs.filter((p) => p.pair).length}/{multiplexResult.pairs.length} targets designed
+							<div
+								style={{
+									padding: "14px 20px 10px",
+									borderBottom: "1px solid #ddd8ce",
+									display: "flex",
+									alignItems: "center",
+									gap: "10px",
+									flexWrap: "wrap",
+								}}
+							>
+								<span
+									style={{
+										fontFamily: "var(--font-courier)",
+										fontSize: "9px",
+										letterSpacing: "0.12em",
+										color: "#1a4731",
+										textTransform: "uppercase",
+									}}
+								>
+									{multiplexResult.pairs.filter((p) => p.pair).length}/
+									{multiplexResult.pairs.length} targets designed
 								</span>
 								{multiplexResult.compatibleSet.length >= 2 && (
-									<span style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: "#1a4731" }}>
-										· compatible set: {multiplexResult.compatibleSet.map((i) => multiplexResult.pairs[i]?.targetName).join(", ")}
+									<span
+										style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: "#1a4731" }}
+									>
+										· compatible set:{" "}
+										{multiplexResult.compatibleSet
+											.map((i) => multiplexResult.pairs[i]?.targetName)
+											.join(", ")}
 									</span>
 								)}
 								<button
 									type="button"
 									onClick={() => {
-										const rows = ["Target,Fwd,Tm_fwd,Rev,Tm_rev,Ta,ProductSize,AvgTm,Compatible_with"];
+										const rows = [
+											"Target,Fwd,Tm_fwd,Rev,Tm_rev,Ta,ProductSize,AvgTm,Compatible_with",
+										];
 										for (const p of multiplexResult.pairs) {
 											if (!p.pair) continue;
 											const ta = computeTa(p.avgTm, polymerase).toFixed(0);
 											const compatWith = multiplexResult.compatibleSet.includes(p.targetIdx)
-												? multiplexResult.compatibleSet.filter((j) => j !== p.targetIdx).map((j) => multiplexResult.pairs[j]?.targetName).join("|")
+												? multiplexResult.compatibleSet
+														.filter((j) => j !== p.targetIdx)
+														.map((j) => multiplexResult.pairs[j]?.targetName)
+														.join("|")
 												: "";
-											rows.push(`${p.targetName},${p.pair.fwd.seq},${p.pair.fwd.tm.toFixed(1)},${p.pair.rev.seq},${p.pair.rev.tm.toFixed(1)},${ta},${p.pair.productSize},${p.avgTm.toFixed(1)},${compatWith}`);
+											rows.push(
+												`${p.targetName},${p.pair.fwd.seq},${p.pair.fwd.tm.toFixed(1)},${p.pair.rev.seq},${p.pair.rev.tm.toFixed(1)},${ta},${p.pair.productSize},${p.avgTm.toFixed(1)},${compatWith}`,
+											);
 										}
 										const blob = new Blob([rows.join("\n")], { type: "text/csv" });
 										const url = URL.createObjectURL(blob);
-										const a = document.createElement("a"); a.href = url; a.download = "multiplex-panel.csv"; a.click();
+										const a = document.createElement("a");
+										a.href = url;
+										a.download = "multiplex-panel.csv";
+										a.click();
 										URL.revokeObjectURL(url);
 									}}
-									style={{ marginLeft: "auto", fontFamily: "var(--font-courier)", fontSize: "9px", letterSpacing: "0.06em", padding: "4px 10px", background: "none", border: "1px solid #ddd8ce", borderRadius: "3px", color: "#5a5648", cursor: "pointer" }}
+									style={{
+										marginLeft: "auto",
+										fontFamily: "var(--font-courier)",
+										fontSize: "9px",
+										letterSpacing: "0.06em",
+										padding: "4px 10px",
+										background: "none",
+										border: "1px solid #ddd8ce",
+										borderRadius: "3px",
+										color: "#5a5648",
+										cursor: "pointer",
+									}}
 								>
 									↓ CSV
 								</button>
 							</div>
 							<div style={{ padding: "16px 20px" }}>
-								<div style={{ fontFamily: "var(--font-courier)", fontSize: "9px", letterSpacing: "0.12em", color: "#9a9284", textTransform: "uppercase", marginBottom: "10px" }}>
+								<div
+									style={{
+										fontFamily: "var(--font-courier)",
+										fontSize: "9px",
+										letterSpacing: "0.12em",
+										color: "#9a9284",
+										textTransform: "uppercase",
+										marginBottom: "10px",
+									}}
+								>
 									Compatibility matrix
 								</div>
-								<div style={{ fontFamily: "var(--font-courier)", fontSize: "8px", color: "#9a9284", marginBottom: "8px", display: "flex", gap: "14px" }}>
-									<span><span style={{ color: "#1a4731" }}>✓</span> compatible</span>
-									<span><span style={{ color: "#b8933a" }}>~</span> borderline</span>
-									<span><span style={{ color: "#a02828" }}>✗</span> incompatible</span>
+								<div
+									style={{
+										fontFamily: "var(--font-courier)",
+										fontSize: "8px",
+										color: "#9a9284",
+										marginBottom: "8px",
+										display: "flex",
+										gap: "14px",
+									}}
+								>
+									<span>
+										<span style={{ color: "#1a4731" }}>✓</span> compatible
+									</span>
+									<span>
+										<span style={{ color: "#b8933a" }}>~</span> borderline
+									</span>
+									<span>
+										<span style={{ color: "#a02828" }}>✗</span> incompatible
+									</span>
 								</div>
 								<MultiplexMatrix result={multiplexResult} />
 							</div>
@@ -2761,37 +3919,164 @@ export function PrimerTool() {
 								{multiplexResult.pairs.map((p, i) => {
 									if (!p.pair) {
 										return (
-											<div key={i} style={{ padding: "10px 20px", borderBottom: "1px solid rgba(221,216,206,0.5)", opacity: 0.5 }}>
-												<span style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: "#9a9284" }}>{p.targetName} — {p.warning ?? "no pair"}</span>
+											<div
+												key={i}
+												style={{
+													padding: "10px 20px",
+													borderBottom: "1px solid rgba(221,216,206,0.5)",
+													opacity: 0.5,
+												}}
+											>
+												<span
+													style={{
+														fontFamily: "var(--font-courier)",
+														fontSize: "9px",
+														color: "#9a9284",
+													}}
+												>
+													{p.targetName} — {p.warning ?? "no pair"}
+												</span>
 											</div>
 										);
 									}
 									const ta = computeTa(p.avgTm, polymerase);
 									const inSet = multiplexResult.compatibleSet.includes(i);
 									return (
-										<div key={i} style={{ padding: "10px 14px", borderBottom: "1px solid rgba(221,216,206,0.5)", borderLeft: inSet ? "3px solid #1a4731" : "3px solid transparent", background: inSet ? "rgba(26,71,49,0.03)" : "transparent" }}>
-											<div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "5px", flexWrap: "wrap" }}>
-												<span style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: inSet ? "#1a4731" : "#9a9284", fontWeight: inSet ? 700 : 400 }}>
+										<div
+											key={i}
+											style={{
+												padding: "10px 14px",
+												borderBottom: "1px solid rgba(221,216,206,0.5)",
+												borderLeft: inSet ? "3px solid #1a4731" : "3px solid transparent",
+												background: inSet ? "rgba(26,71,49,0.03)" : "transparent",
+											}}
+										>
+											<div
+												style={{
+													display: "flex",
+													alignItems: "center",
+													gap: "6px",
+													marginBottom: "5px",
+													flexWrap: "wrap",
+												}}
+											>
+												<span
+													style={{
+														fontFamily: "var(--font-courier)",
+														fontSize: "9px",
+														color: inSet ? "#1a4731" : "#9a9284",
+														fontWeight: inSet ? 700 : 400,
+													}}
+												>
 													{p.targetName}
 												</span>
-												{inSet && <span style={{ fontFamily: "var(--font-courier)", fontSize: "8px", color: "#1a4731", border: "1px solid rgba(26,71,49,0.3)", borderRadius: "2px", padding: "1px 5px" }}>panel</span>}
-												<span style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: "#5a5648" }}>{p.pair.productSize} bp</span>
+												{inSet && (
+													<span
+														style={{
+															fontFamily: "var(--font-courier)",
+															fontSize: "8px",
+															color: "#1a4731",
+															border: "1px solid rgba(26,71,49,0.3)",
+															borderRadius: "2px",
+															padding: "1px 5px",
+														}}
+													>
+														panel
+													</span>
+												)}
+												<span
+													style={{
+														fontFamily: "var(--font-courier)",
+														fontSize: "9px",
+														color: "#5a5648",
+													}}
+												>
+													{p.pair.productSize} bp
+												</span>
 												<span style={{ color: "#ddd8ce" }}>·</span>
-												<span style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: "#9a9284" }}>avg Tm {p.avgTm.toFixed(1)}°</span>
+												<span
+													style={{
+														fontFamily: "var(--font-courier)",
+														fontSize: "9px",
+														color: "#9a9284",
+													}}
+												>
+													avg Tm {p.avgTm.toFixed(1)}°
+												</span>
 												<span style={{ color: "#ddd8ce" }}>·</span>
-												<span style={{ fontFamily: "var(--font-courier)", fontSize: "9px", color: "#1a4731", fontWeight: 600 }}>Ta {ta.toFixed(0)}°C</span>
-												<button type="button" onClick={() => void navigator.clipboard.writeText(`Fwd: ${p.pair!.fwd.seq}\nRev: ${p.pair!.rev.seq}`)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-courier)", fontSize: "9px", color: "#9a9284" }}>copy</button>
+												<span
+													style={{
+														fontFamily: "var(--font-courier)",
+														fontSize: "9px",
+														color: "#1a4731",
+														fontWeight: 600,
+													}}
+												>
+													Ta {ta.toFixed(0)}°C
+												</span>
+												<button
+													type="button"
+													onClick={() =>
+														void navigator.clipboard.writeText(
+															`Fwd: ${p.pair!.fwd.seq}\nRev: ${p.pair!.rev.seq}`,
+														)
+													}
+													style={{
+														marginLeft: "auto",
+														background: "none",
+														border: "none",
+														cursor: "pointer",
+														fontFamily: "var(--font-courier)",
+														fontSize: "9px",
+														color: "#9a9284",
+													}}
+												>
+													copy
+												</button>
 											</div>
-											<div style={{ fontFamily: "var(--font-courier)", fontSize: "10px", color: "#1c1a16", letterSpacing: "0.04em", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", cursor: "pointer" }} onClick={() => void navigator.clipboard.writeText(p.pair!.fwd.seq)}>
+											<div
+												style={{
+													fontFamily: "var(--font-courier)",
+													fontSize: "10px",
+													color: "#1c1a16",
+													letterSpacing: "0.04em",
+													overflow: "hidden",
+													whiteSpace: "nowrap",
+													textOverflow: "ellipsis",
+													cursor: "pointer",
+												}}
+												onClick={() => void navigator.clipboard.writeText(p.pair!.fwd.seq)}
+											>
 												→ {p.pair.fwd.seq}
 											</div>
-											<div style={{ fontFamily: "var(--font-courier)", fontSize: "10px", color: "#1c1a16", letterSpacing: "0.04em", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", cursor: "pointer", marginTop: "2px" }} onClick={() => void navigator.clipboard.writeText(p.pair!.rev.seq)}>
+											<div
+												style={{
+													fontFamily: "var(--font-courier)",
+													fontSize: "10px",
+													color: "#1c1a16",
+													letterSpacing: "0.04em",
+													overflow: "hidden",
+													whiteSpace: "nowrap",
+													textOverflow: "ellipsis",
+													cursor: "pointer",
+													marginTop: "2px",
+												}}
+												onClick={() => void navigator.clipboard.writeText(p.pair!.rev.seq)}
+											>
 												← {p.pair.rev.seq}
 											</div>
 											{specState !== "idle" && (
 												<div style={{ display: "flex", gap: "10px", marginTop: "5px" }}>
-													<SpecBadge label="Fwd" hits={specResults?.get(p.pair.fwd.seq)} loading={specState === "loading"} />
-													<SpecBadge label="Rev" hits={specResults?.get(p.pair.rev.seq)} loading={specState === "loading"} />
+													<SpecBadge
+														label="Fwd"
+														hits={specResults?.get(p.pair.fwd.seq)}
+														loading={specState === "loading"}
+													/>
+													<SpecBadge
+														label="Rev"
+														hits={specResults?.get(p.pair.rev.seq)}
+														loading={specState === "loading"}
+													/>
 												</div>
 											)}
 										</div>

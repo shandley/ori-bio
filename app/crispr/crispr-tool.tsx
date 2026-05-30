@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { SiteNav } from "@/components/nav/site-nav";
 import type {
 	CasVariant,
 	CRISPRDesignOptions,
@@ -644,77 +645,7 @@ export function CrisprTool() {
 				flexDirection: "column",
 			}}
 		>
-			{/* Top bar */}
-			<header
-				style={{
-					height: "52px",
-					display: "flex",
-					alignItems: "center",
-					gap: "16px",
-					padding: "0 32px",
-					borderBottom: "1px solid #ddd8ce",
-					background: "rgba(245,240,232,0.97)",
-					backdropFilter: "blur(8px)",
-					flexShrink: 0,
-					position: "sticky",
-					top: 0,
-					zIndex: 10,
-				}}
-			>
-				<div
-					style={{
-						position: "absolute",
-						top: 0,
-						left: 0,
-						right: 0,
-						height: "2px",
-						background: "linear-gradient(90deg, #1a4731 0%, #2d7a54 50%, transparent 100%)",
-						opacity: 0.6,
-					}}
-				/>
-				<Link
-					href="/"
-					style={{
-						fontFamily: "var(--font-playfair)",
-						fontSize: "22px",
-						fontWeight: 400,
-						color: "#1c1a16",
-						letterSpacing: "-0.01em",
-						textDecoration: "none",
-					}}
-				>
-					Ori
-				</Link>
-				<span style={{ color: "#ddd8ce", fontSize: "16px" }}>/</span>
-				<span
-					style={{
-						fontFamily: "var(--font-courier)",
-						fontSize: "11px",
-						letterSpacing: "0.10em",
-						textTransform: "uppercase",
-						color: "#5a5648",
-					}}
-				>
-					CRISPR Guide Design
-				</span>
-				<div style={{ flex: 1 }} />
-				<Link
-					href="/dashboard"
-					style={{
-						fontFamily: "var(--font-courier)",
-						fontSize: "9px",
-						letterSpacing: "0.08em",
-						textTransform: "uppercase",
-						color: "#9a9284",
-						textDecoration: "none",
-						padding: "5px 12px",
-						border: "1px solid #ddd8ce",
-						borderRadius: "3px",
-					}}
-				>
-					Open Ori
-				</Link>
-			</header>
+			<SiteNav />
 
 			<main
 				style={{ flex: 1, padding: "32px", maxWidth: "1200px", margin: "0 auto", width: "100%" }}

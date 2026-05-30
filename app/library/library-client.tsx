@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useMemo, useRef, useState } from "react";
+import { SiteNav } from "@/components/nav/site-nav";
 import type { LibraryPlasmid } from "./page";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -541,74 +542,7 @@ export function LibraryClient({ initialPlasmids }: { initialPlasmids: LibraryPla
 				transition: "padding-right 0.2s",
 			}}
 		>
-			{/* Top nav */}
-			<div
-				style={{
-					borderBottom: "1px solid #ddd8ce",
-					background: "rgba(245,240,232,0.97)",
-					position: "sticky",
-					top: 0,
-					zIndex: 50,
-					padding: "0 32px",
-					display: "flex",
-					alignItems: "center",
-					justifyContent: "space-between",
-					minHeight: "52px",
-				}}
-			>
-				<div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-					<Link
-						href="/"
-						style={{
-							...s.play,
-							fontSize: "17px",
-							color: "#1a4731",
-							textDecoration: "none",
-							letterSpacing: "-0.01em",
-						}}
-					>
-						Ori
-					</Link>
-					<span style={{ color: "#ddd8ce" }}>·</span>
-					<span style={{ ...s.karla, fontSize: "14px", color: "#5a5648", fontWeight: 500 }}>
-						Plasmid Library
-					</span>
-				</div>
-				<div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-					<Link
-						href="/login"
-						style={{
-							...s.mono,
-							fontSize: "9px",
-							letterSpacing: "0.08em",
-							textTransform: "uppercase",
-							color: "#5a5648",
-							textDecoration: "none",
-							border: "1px solid #ddd8ce",
-							padding: "4px 10px",
-							borderRadius: "2px",
-						}}
-					>
-						Sign in
-					</Link>
-					<Link
-						href="/signup"
-						style={{
-							...s.mono,
-							fontSize: "9px",
-							letterSpacing: "0.08em",
-							textTransform: "uppercase",
-							color: "white",
-							background: "#1a4731",
-							textDecoration: "none",
-							padding: "4px 10px",
-							borderRadius: "2px",
-						}}
-					>
-						Sign up
-					</Link>
-				</div>
-			</div>
+			<SiteNav />
 
 			{/* Hero + search */}
 			<div style={{ padding: "40px 32px 24px", borderBottom: "1px solid #ddd8ce" }}>

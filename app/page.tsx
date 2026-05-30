@@ -1,94 +1,13 @@
 import Link from "next/link";
+import { SiteNav } from "@/components/nav/site-nav";
 
 export default function LandingPage() {
 	return (
 		<div className="flex min-h-full flex-col" style={{ backgroundImage: "none" }}>
-			{/* NAV */}
-			<header
-				className="fixed top-0 left-0 right-0 z-50 flex h-15 items-center justify-between border-b border-border bg-[#f5f0e8]/95 px-14 backdrop-blur-sm"
-				style={{ height: "60px" }}
-			>
-				<div className="flex items-baseline gap-3">
-					<span
-						style={{
-							fontFamily: "var(--font-playfair)",
-							fontSize: "26px",
-							fontWeight: 400,
-							letterSpacing: "-0.01em",
-							color: "#1c1a16",
-						}}
-					>
-						Ori
-					</span>
-					<span
-						style={{
-							fontFamily: "var(--font-courier)",
-							fontSize: "10px",
-							fontStyle: "italic",
-							color: "#9a9284",
-							letterSpacing: "0.04em",
-						}}
-					>
-						molecular workbench
-					</span>
-				</div>
-				<nav className="flex items-center gap-8">
-					{[
-						["#features", "Features"],
-						["/library", "Library"],
-						["/primers", "Primers"],
-						["/sanger", "Sanger"],
-						["/crispr", "CRISPR"],
-						["https://github.com/shandley/ori-bio", "GitHub"],
-					].map(([href, label]) => (
-						<Link
-							key={label}
-							href={href}
-							className="landing-nav-link"
-							style={{
-								fontFamily: "var(--font-karla)",
-								fontSize: "13px",
-								color: "#5a5648",
-								textDecoration: "none",
-							}}
-						>
-							{label}
-						</Link>
-					))}
-				</nav>
-				<div className="flex items-center gap-4">
-					<Link
-						href="/login"
-						style={{
-							fontFamily: "var(--font-karla)",
-							fontSize: "13px",
-							color: "#5a5648",
-							textDecoration: "none",
-						}}
-					>
-						Sign in
-					</Link>
-					<Link
-						href="/signup"
-						style={{
-							fontFamily: "var(--font-karla)",
-							fontSize: "13px",
-							fontWeight: 500,
-							background: "#1a4731",
-							color: "white",
-							textDecoration: "none",
-							padding: "8px 22px",
-							borderRadius: "4px",
-							letterSpacing: "0.02em",
-						}}
-					>
-						Get started
-					</Link>
-				</div>
-			</header>
+			<SiteNav />
 
 			{/* HERO */}
-			<main style={{ paddingTop: "60px" }}>
+			<main>
 				{/* Rule strip */}
 				<div
 					style={{
