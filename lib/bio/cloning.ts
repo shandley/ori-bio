@@ -88,9 +88,11 @@ export function junctionIsCuttable(e1: CloneableEnzyme, e2: CloneableEnzyme): bo
 export function junctionSequence(e1: CloneableEnzyme, e2: CloneableEnzyme): string {
 	if (e1.name === e2.name) return e1.recognition;
 	// Hybrid scar (e.g. NheI + XbaI → GCTAGA)
-	// Left part: e1.recognition up to overhang start; right part: e2.recognition from overhang start
-	const e1Left = e1.recognition.slice(0, e1.recognition.length - e1.overhang.length);
-	const e2Right = e2.recognition.slice(e2.overhang.length);
+	// For palindromic enzymes the cut is symmetric: (recognition.length − overhang.length) / 2
+	// bases flank each side of the overhang in the recognition sequence.
+	const flank = (e1.recognition.length - e1.overhang.length) / 2;
+	const e1Left  = e1.recognition.slice(0, flank);
+	const e2Right = e2.recognition.slice(flank + e2.overhang.length);
 	return e1Left + e1.overhang + e2Right;
 }
 
