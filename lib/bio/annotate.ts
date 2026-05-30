@@ -70,7 +70,7 @@ function featureColor(type: string): string {
 
 const RC_MAP: Record<string, string> = { A: "T", T: "A", G: "C", C: "G", N: "N" };
 
-function reverseComplement(seq: string): string {
+export function reverseComplement(seq: string): string {
 	let rc = "";
 	for (let i = seq.length - 1; i >= 0; i--) {
 		rc += RC_MAP[seq[i]!] ?? "N";
@@ -91,7 +91,7 @@ function buildKmerMap(seq: string, k: number): Map<string, number[]> {
 	return map;
 }
 
-function computeIdentity(a: string, b: string): number {
+export function computeIdentity(a: string, b: string): number {
 	if (a.length === 0 || b.length === 0) return 0;
 	const len = Math.min(a.length, b.length);
 	let matches = 0;
@@ -276,7 +276,7 @@ function overlapFraction(a: Annotation, b: Annotation): number {
 	return minLen > 0 ? (hi - lo) / minLen : 0;
 }
 
-function dedup(annotations: Annotation[]): Annotation[] {
+export function dedup(annotations: Annotation[]): Annotation[] {
 	// Sort by identity descending so higher-confidence hits are kept first.
 	// Collapse any pair overlapping >70% of the shorter annotation regardless
 	// of name or strand — prevents f1-ori / pMB1-ori stacking and eliminates

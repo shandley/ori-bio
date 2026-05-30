@@ -192,8 +192,9 @@ The pipeline produces a static feature library that ships with the app.
 **Do not suggest wiring hmmscan or any HPC tool into the user-facing Ori pipeline.**
 
 ### Status: COMPLETE
-- `public/data/features.json` deployed with 6,518 high-confidence features
+- `public/data/features.json` deployed with 5,623 high-confidence features
 - Sources: SnapGene (2,550 plasmids) + iGEM Registry (15,673 with sequences), clustered at 80% identity
+- Canonical names enforced: 11 alias groups normalized (e.g. NeoR-KanR→NeoR/KanR, CMV immediate-early promoter→CMV promoter), 895 exact-sequence duplicates removed
 - These features also power the Construct Designer parts catalog — `scripts/update-parts-catalog.py` extracts sequences for any named part from features.json
 
 ### Future expansion
