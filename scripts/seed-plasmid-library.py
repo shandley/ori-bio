@@ -87,6 +87,35 @@ MUST_INCLUDE = {
     "pBiEx-1.gb", "pBiEx-2.gb",
     # TA cloning (extremely common for PCR product cloning)
     "pGEM-T Easy.gb", "pGEM-T.gb", "pGEM-3Z.gb", "pGEM-4Z.gb",
+    "pCR2.1-TOPO.gb", "pCR4-TOPO.gb",          # Invitrogen TOPO TA cloning
+    "pJET1.2.gb", "pJET1.2 blunt.gb",           # Thermo blunt-end TA cloning
+    # Retroviral stable expression — pBABE (Morgenstern & Land 1990)
+    "pBABE-Puro.gb", "pBABE-Hygro.gb", "pBABE-Neo.gb", "pBABE-Zeo.gb",
+    # Retroviral — MSCV backbone (common for hematopoietic cells)
+    "pMSCVpuro.gb", "pMSCVneo.gb", "pMSCVhyg.gb",
+    # Tet-inducible expression (Clontech/Takara)
+    "pRetroX-Tet3G.gb",         # Tet-On 3G transactivator (retroviral delivery)
+    "pRetroX-TRE3G.gb",         # TRE3G response element (retroviral delivery)
+    "pRetroX-TetOne-Puro.gb",   # All-in-one dox-inducible + PuroR
+    "pTRE3G.gb",                # TRE3G element for non-retroviral delivery
+    "pRetroX-Tight-Pur.gb",     # TRE-Tight for low basal expression
+    # Baculovirus — Bac-to-Bac system (Invitrogen)
+    "pFastBac1.gb", "pFastBac Dual.gb",
+    "pFastBacHT A.gb", "pFastBacHT B.gb", "pFastBacHT C.gb",
+    # QIAGEN His-tag bacterial expression (pQE series)
+    "pQE-30.gb", "pQE-31.gb", "pQE-32.gb",     # N-terminal His, 3 reading frames
+    "pQE-60.gb",                                 # C-terminal His
+    "pQE-80L.gb", "pQE-80L-Kan.gb",             # Larger cloning capacity
+    # Episomal mammalian expression (EBV oriP — replicates without integration)
+    "pCEP4.gb",
+    # Drosophila S2 cell expression (Invitrogen)
+    "pAc5.1 V5-His A.gb", "pAc5.1 V5-His B.gb", "pAc5.1 V5-His C.gb",
+    # Yeast two-hybrid — GAL4 system (Clontech/Takara)
+    "pGADT7 AD.gb",
+    # Human codon-optimized Cas9 (distinct from pX/lentiCas9 plasmids)
+    "hCas9.gb", "hCas9_D10A.gb",
+    # Retroviral shRNA (pSIREN-RetroQ backbone)
+    "pSIREN-RetroQ.gb",
     # ── Yeast vectors ──────────────────────────────────────────────────────────
     # pRS series — the standard S. cerevisiae shuttle vectors (Sikorski & Hieter)
     # Centromeric (low copy, ~1-2 copies/cell):
@@ -133,7 +162,8 @@ def infer_categories(name: str, features: list[str]) -> list[str]:
     if any(x in n for x in ["prs3", "prs4", "pesc", "pyes", "ycplac", "yeplac", "ycp", "yep",
                               "ppicz", "ppic", "pgapz", "paur", "p414", "p415", "p426", "pag2", "pag3"]):
         cats.append("yeast")
-    if any(x in n for x in ["lenti", "paav", "pspax", "pvsvg", "pmd2", "plp-vsv", "plko"]):
+    if any(x in n for x in ["lenti", "paav", "pspax", "pvsvg", "pmd2", "plp-vsv", "plko",
+                              "pbabe", "pmscv", "pretro", "pfastbac", "msiren"]):
         cats.append("viral")
     if any(x in n for x in ["pgl", "pglow", "luc"]):
         cats.append("reporter")
@@ -209,6 +239,12 @@ def extract_key_features(record) -> list[str]:
         "TRP1": ["trp1", "n-(5-phosphoribosyl)", "trp-1"],
         "AOX1 promoter": ["aox1", "alcohol oxidase", "methanol-inducible"],
         "GAP promoter": ["gap promoter", "glyceraldehyde-3-phosphate dehydrogenase"],
+        "TRE3G promoter": ["tre3g", "tet-responsive", "tetracycline response"],
+        "Tet-On 3G": ["tet-on 3g", "tet3g", "m2rtTA"],
+        "LTR": ["long terminal repeat", "ltr"],
+        "polyhedrin promoter": ["polyhedrin", "polh"],
+        "EBV oriP": ["ebv orip", "epstein-barr", "ori p"],
+        "GAL4 AD": ["gal4 activation", "gal4 ad", "gadc"],
     }
     seen = set()
     for feat in record.features:
@@ -232,7 +268,7 @@ def make_slug(name: str) -> str:
 
 # ── Plasmid selection ─────────────────────────────────────────────────────────
 
-def select_plasmids(target: int = 350) -> list[Path]:
+def select_plasmids(target: int = 400) -> list[Path]:
     all_files = list(SNAPGENE_DIR.glob("*.gb"))
     must = [SNAPGENE_DIR / m for m in MUST_INCLUDE if (SNAPGENE_DIR / m).exists()]
     must_names = {m.name for m in must}
