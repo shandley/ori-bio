@@ -50,7 +50,7 @@ Published on npm as **`@shandley/abif-ts`** v0.1.0. Lives at `../abif-ts` (sibli
 ## Sequence viewer — key architecture decisions
 - **Annotation editor**: triggered by explicit ✎ button on the annotation badge in the Primers panel. Never auto-opens. Lives inside the panel content area below the tab bar (not above it).
 - **Mode-result cache**: switching PCR/qPCR/Assembly modes saves current results and restores the new mode's last results. Amber stale banner identifies which mode's results are showing.
-- **Keyboard shortcuts**: Enter (in coord inputs) = design, ↑/↓ = navigate pairs, Esc = cancel/clear, Alt+1-7 = switch tabs
+- **Keyboard shortcuts**: Enter (in coord inputs) = design, ↑/↓ = navigate pairs, Esc = cancel/clear, Alt+1-8 = switch tabs (1=Enzymes, 2=Primers, 3=Digest, 4=Align, 5=ORFs, 6=Search, 7=AI, 8=GC)
 - **Cancel button**: Design button transforms to amber "× Cancel" while worker runs; also cancellable via Esc
 - **Error messages**: primd validation messages passed through directly; fallback is "[mode] design failed for region [s]–[e]. [mode-specific hint]"; worker crash distinguished
 - **Assembly options**: Overlap/Enzyme/Search ± live inside the collapsible Options section (not always-visible); Assembly mode auto-opens Options
@@ -198,4 +198,13 @@ The pipeline produces a static feature library that ships with the app.
 - These features also power the Construct Designer parts catalog — `scripts/update-parts-catalog.py` extracts sequences for any named part from features.json
 
 ### Future expansion
-- Addgene: ~200k more plasmids, needs login credentials. Once obtained: re-run HTCF pipeline → re-export features.json → run `scripts/update-parts-catalog.py` → improved annotation + parts catalog automatically
+- Addgene: licensing incompatible with MIT open-source license (noncommercial only). Explored and closed — see co-occurrence pipeline notes.
+- NCBI GenBank SYN division: public domain, but annotation quality too inconsistent for co-occurrence without full re-annotation pass.
+
+## Reference library
+
+**Status: COMPLETE at 311 plasmids**
+Seeded from SnapGene public collection on HTCF (`/scratch/sahlab/shandley/helix-feature-db/raw/snapgene/`, 2,550 .gb files).
+Covers all major systems: bacterial (pET, pGEX, pMAL, pQE, pRSET, Duet series), mammalian (pcDNA3/4/5/6, pCMV, pCEP4), inducible (Tet-On, pBAD), lentiviral (lentiCRISPR, lentiCas9, psPAX2, pMD2.G, pLKO.1), retroviral (pBABE, pMSCV, pSIREN-RetroQ), baculovirus (pFastBac Bac-to-Bac), yeast S. cerevisiae (full pRS series, pESC, pYES, pAG, pAUR, yeast CRISPR), Pichia (pPICZ, pGAPZ), insect (pAc5.1), plant (pCAMBIA, pBI), CRISPR (pX330/458/459/461, hCas9), AAV, reporter (pGL3/4, pRL), Gateway (pDONR/pDEST), TA cloning (pGEM-T Easy, pCR2.1-TOPO, pJET1.2), two-hybrid (pGADT7, pGBKT7), Sleeping Beauty transposon (pSB1C3, pSB11).
+
+**Seed script**: `scripts/seed-plasmid-library.py` — run on HTCF with `SUPABASE_SECRET_KEY=sb_secret_*` (legacy JWT keys disabled). confphylo conda env has biopython + requests.
