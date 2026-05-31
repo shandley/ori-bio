@@ -25,7 +25,8 @@ from Bio import SeqIO
 
 SNAPGENE_DIR = Path("/scratch/sahlab/shandley/helix-feature-db/raw/snapgene")
 SUPABASE_URL = os.environ["SUPABASE_URL"]
-SERVICE_KEY  = os.environ["SUPABASE_SERVICE_KEY"]
+# Accept either the new sb_secret_* key (preferred) or the legacy JWT service role key
+SERVICE_KEY  = os.environ.get("SUPABASE_SECRET_KEY") or os.environ.get("SUPABASE_SERVICE_KEY") or os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 BUCKET       = "plasmid-library"
 
 # ── Must-include plasmids ─────────────────────────────────────────────────────
@@ -33,43 +34,44 @@ BUCKET       = "plasmid-library"
 MUST_INCLUDE = {
     # Core cloning vectors
     "pUC19.gb", "pUC18.gb", "pBR322.gb", "pACYC184.gb", "pACYC177.gb", "pSC101.gb",
-    "pUC57.gb", "pBluescript SK+.gb", "pBluescript KS+.gb",
-    # Bacterial expression — pET series (most-used variants)
+    "pUC57.gb",
+    "pBluescript SK(-).gb", "pBluescript KS(-).gb", "pBluescript II KS(-).gb",
+    # Bacterial expression — pET series
     "pET-3a.gb", "pET-11a.gb", "pET-15b.gb", "pET-19b.gb",
-    "pET-21a(+).gb", "pET-21b(+).gb",
-    "pET-28a(+).gb", "pET-28b(+).gb", "pET-28c(+).gb",
-    "pET-32a(+).gb", "pET-41a(+).gb",
+    "pET-9a.gb", "pET-9b.gb", "pET-9c.gb", "pET-9d.gb",
+    "pET-41 Ek_LIC.gb", "pET-43.1 Ek_LIC.gb", "pET-46 Ek_LIC.gb",
+    "pET-53-DEST.gb", "pET-57-DEST.gb",
     # Bacterial expression — dual expression / other
-    "pETDuet-1.gb", "pRSFDuet-1.gb", "pACYCDuet-1.gb",
+    "pETDuet-1.gb", "pRSFDuet-1.gb", "pACYCDuet-1.gb", "pCDFDuet-1.gb",
+    "pRSF-1b.gb", "pCDF-1b.gb",
     "pGEX-4T-1.gb", "pGEX-6P-1.gb", "pGEX-2T.gb",
     "pMAL-c5X.gb", "pMAL-p5X.gb",
     "pTrcHis A.gb", "pTrcHis B.gb",
-    "pBAD/HisB.gb", "pBAD/gIII A.gb",
     "pRSET A.gb", "pRSET B.gb", "pRSET C.gb",
     # Mammalian expression
-    "pcDNA3.1(-).gb", "pcDNA3.1(+).gb", "pcDNA3.gb", "pcDNA4 TO.gb",
-    "pcDNA3.1/V5-His A.gb", "pcDNA3.1/myc-His A.gb",
+    "pcDNA3.1(-).gb", "pcDNA3.gb", "pcDNA4 TO.gb",
+    "pcDNA3.1 V5-His A.gb", "pcDNA3.1 myc-His A.gb", "pcDNA3.1 His A.gb",
+    "pcDNA3.1 Hygro(-).gb", "pcDNA3.1 Zeo(-).gb",
+    "pcDNA5 FRT.gb", "pcDNA5 FRT TO.gb", "pcDNA5 TO.gb",
+    "pcDNA6 V5-His A.gb", "pcDNA6 myc-His A.gb",
     "pCMV-Script.gb", "pCMV-LacZ.gb", "pCMV-MIR.gb",
-    "pCDH-CMV-MCS-EF1-Puro.gb", "pCDH-CMV-MCS-EF1-GFP-Hygro.gb",
-    "pCW57.1.gb",
     # Fluorescent proteins (full vectors)
     "pEGFP-N1.gb", "pEGFP-C1.gb", "pEGFP-N3.gb",
     "DsRed2.gb", "DsRed-Express2.gb", "mCherry.gb",
     # Lentiviral — transfer vectors
     "lentiCRISPR v2.gb", "lentiCas9-EGFP.gb", "lentiCas9-Blast.gb",
     "lentiGuide-Puro.gb", "lentiGuide-Hygro.gb",
-    "pLKO.1-TRC.gb", "pLKO.1-puro.gb",
+    "pLKO.1.gb", "pLKO.1 puro.gb",
     # Lentiviral — packaging / envelope
-    "psPAX2.gb", "pMD2.G.gb", "pLP-VSV-G.gb",
+    "psPAX2.gb", "pMD2.G.gb",
     # CRISPR
-    "pX330.gb", "pX330-U6-Chimeric_BB-CBh-hSpCas9.gb",
+    "pX330.gb",
     "pSpCas9(BB)-2A-GFP (PX458).gb",
     "pSpCas9(BB)-2A-Puro (PX459) V2.0.gb",
     "pSpCas9n(BB)-2A-GFP (PX461).gb",
     "pCas-Guide-CRISPRa.gb", "pCas-Guide-CRISPRi.gb",
     # AAV
     "pAAV2-EF1a-tGFP-WPRE.gb", "pAAVS1-Puro-DNR.gb",
-    "pAAV-MCS.gb", "pAAV-CMV-hrGFP.gb",
     # Reporter
     "pGL3-Basic.gb", "pGL3-Control.gb", "pGL3-Enhancer.gb",
     "pGL4.10[luc2].gb", "pGL4.13[luc2 SV40].gb", "pGL4.23[luc2 minP].gb",
@@ -77,7 +79,6 @@ MUST_INCLUDE = {
     # Gateway
     "pDONR221.gb", "pDONR201.gb", "pDONR207.gb",
     "pDEST14.gb", "pDEST15.gb", "pDEST17.gb",
-    "pDEST-EGFP.gb",
     # Plant
     "pBI121.gb", "pBI221.gb",
     "pCAMBIA1301.gb", "pCAMBIA1302.gb", "pCAMBIA2300.gb", "pCAMBIA3300.gb",
@@ -255,7 +256,7 @@ def upsert_row(row: dict) -> bool:
         "Prefer": "resolution=merge-duplicates",
     }
     r = requests.post(url, headers=headers, data=json.dumps(row))
-    return r.status_code in (200, 201)
+    return r.status_code in (200, 201, 204)  # 204 = upsert matched existing row
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
