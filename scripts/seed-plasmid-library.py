@@ -85,6 +85,39 @@ MUST_INCLUDE = {
     # Baculovirus/insect
     "BaculoDirect N-Term Linear DNA.gb",
     "pBiEx-1.gb", "pBiEx-2.gb",
+    # TA cloning (extremely common for PCR product cloning)
+    "pGEM-T Easy.gb", "pGEM-T.gb", "pGEM-3Z.gb", "pGEM-4Z.gb",
+    # ── Yeast vectors ──────────────────────────────────────────────────────────
+    # pRS series — the standard S. cerevisiae shuttle vectors (Sikorski & Hieter)
+    # Centromeric (low copy, ~1-2 copies/cell):
+    "pRS313.gb", "pRS314.gb", "pRS315.gb", "pRS316.gb",  # HIS3, TRP1, LEU2, URA3
+    # 2µ-based (high copy, ~20 copies/cell):
+    "pRS423.gb", "pRS424.gb", "pRS425.gb", "pRS426.gb",  # HIS3, TRP1, LEU2, URA3
+    # Integrating:
+    "pRS303.gb", "pRS304.gb", "pRS305.gb", "pRS306.gb",  # HIS3, TRP1, LEU2, URA3
+    "pRS403.gb", "pRS404.gb", "pRS405.gb", "pRS406.gb",  # HIS3, TRP1, LEU2, URA3
+    # pESC — dual-expression galactose-inducible (Stratagene/Agilent)
+    "pESC-HIS.gb", "pESC-LEU.gb", "pESC-TRP.gb", "pESC-URA.gb",
+    # pYES — GAL1-promoter expression (Invitrogen)
+    "pYES2.gb", "pYES2 CT.gb", "pYES2 NT A.gb",
+    "pYES3 CT.gb", "pYES-DEST52.gb",
+    # YCplac — classic centromeric vectors (Gietz & Sugino)
+    "YCplac111.gb", "YCplac22.gb", "YCplac33.gb",
+    # YEplac — classic 2µ episomal vectors
+    "YEplac112.gb", "YEplac181.gb", "YEplac195.gb",
+    "YCp50.gb",
+    # pAG — yeast integration marker cassettes (Goldstein & McCusker)
+    "pAG25.gb", "pAG29.gb", "pAG32.gb",
+    # pAUR — Aureobasidin A selection (TaKaRa, common in fission yeast)
+    "pAUR101.gb", "pAUR123.gb", "pAUR316.gb",
+    # Yeast CRISPR (DiCarlo et al. 2013)
+    "p414-TEF1p-Cas9-CYC1t.gb", "p415-GalL-Cas9-CYC1t.gb",
+    "p426-SNR52p-gRNA.CAN1.Y-SUP4t.gb",
+    # Pichia pastoris — methanol-inducible (pPICZ) and constitutive (pGAPZ)
+    "pPICZ A.gb", "pPICZ B.gb", "pPICZ C.gb",
+    "pPICZ(alpha) A.gb", "pPICZ(alpha) B.gb",
+    "pPIC9.gb", "pPIC9K.gb",
+    "pGAPZ A.gb", "pGAPZ B.gb", "pGAPZ(alpha) A.gb",
 }
 
 # ── Category heuristics ───────────────────────────────────────────────────────
@@ -97,6 +130,9 @@ def infer_categories(name: str, features: list[str]) -> list[str]:
         cats.append("bacterial")
     if any(x in n for x in ["pcdna", "pcmv", "plenti", "pgfp", "phcmv", "pcdh"]):
         cats.append("mammalian")
+    if any(x in n for x in ["prs3", "prs4", "pesc", "pyes", "ycplac", "yeplac", "ycp", "yep",
+                              "ppicz", "ppic", "pgapz", "paur", "p414", "p415", "p426", "pag2", "pag3"]):
+        cats.append("yeast")
     if any(x in n for x in ["lenti", "paav", "pspax", "pvsvg", "pmd2", "plp-vsv", "plko"]):
         cats.append("viral")
     if any(x in n for x in ["pgl", "pglow", "luc"]):
@@ -162,6 +198,17 @@ def extract_key_features(record) -> list[str]:
         "U6 promoter": ["u6 promoter", "rnu6", "h1 promoter"],
         "araBAD promoter": ["arabad", "pbad", "l-arabinose"],
         "pUC ori": ["puc ori", "puc origin"],
+        "2µ ori": ["2 micron", "2µ", "2-micron", "flp recombinase"],
+        "CEN/ARS": ["cen", "ars", "centromere", "autonomously replicating"],
+        "GAL1 promoter": ["gal1 promoter", "gal1p", "gal1-10"],
+        "GAL10 promoter": ["gal10 promoter", "gal10p"],
+        "TEF1 promoter": ["tef1 promoter", "tef1p", "elongation factor"],
+        "URA3": ["ura3", "orotidine", "ura-3"],
+        "LEU2": ["leu2", "beta-isopropylmalate", "leu-2"],
+        "HIS3": ["his3", "imidazoleglycerol", "his-3"],
+        "TRP1": ["trp1", "n-(5-phosphoribosyl)", "trp-1"],
+        "AOX1 promoter": ["aox1", "alcohol oxidase", "methanol-inducible"],
+        "GAP promoter": ["gap promoter", "glyceraldehyde-3-phosphate dehydrogenase"],
     }
     seen = set()
     for feat in record.features:
@@ -185,7 +232,7 @@ def make_slug(name: str) -> str:
 
 # ── Plasmid selection ─────────────────────────────────────────────────────────
 
-def select_plasmids(target: int = 300) -> list[Path]:
+def select_plasmids(target: int = 350) -> list[Path]:
     all_files = list(SNAPGENE_DIR.glob("*.gb"))
     must = [SNAPGENE_DIR / m for m in MUST_INCLUDE if (SNAPGENE_DIR / m).exists()]
     must_names = {m.name for m in must}
@@ -195,7 +242,7 @@ def select_plasmids(target: int = 300) -> list[Path]:
     category_groups: dict[str, list[Path]] = {
         "expression": [], "lenti_aav": [], "crispr": [],
         "reporter": [], "gateway": [], "plant": [],
-        "fluorescent": [], "insect": [], "other": [],
+        "fluorescent": [], "insect": [], "yeast": [], "other": [],
     }
 
     for f in all_files:
@@ -218,6 +265,9 @@ def select_plasmids(target: int = 300) -> list[Path]:
             category_groups["fluorescent"].append(f)
         elif any(x in n for x in ["baculodirect", "pbiex"]):
             category_groups["insect"].append(f)
+        elif any(x in n for x in ["prs", "pesc", "pyes", "ycplac", "yeplac", "ycp", "yep",
+                                    "ppicz", "ppic", "pgapz", "paur", "p414", "p415", "p426"]):
+            category_groups["yeast"].append(f)
         else:
             category_groups["other"].append(f)
 
