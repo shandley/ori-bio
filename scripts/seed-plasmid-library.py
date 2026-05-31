@@ -33,35 +33,51 @@ BUCKET       = "plasmid-library"
 MUST_INCLUDE = {
     # Core cloning vectors
     "pUC19.gb", "pUC18.gb", "pBR322.gb", "pACYC184.gb", "pACYC177.gb", "pSC101.gb",
-    "pUC57.gb",
-    # Bacterial expression
+    "pUC57.gb", "pBluescript SK+.gb", "pBluescript KS+.gb",
+    # Bacterial expression — pET series (most-used variants)
     "pET-3a.gb", "pET-11a.gb", "pET-15b.gb", "pET-19b.gb",
+    "pET-21a(+).gb", "pET-21b(+).gb",
+    "pET-28a(+).gb", "pET-28b(+).gb", "pET-28c(+).gb",
+    "pET-32a(+).gb", "pET-41a(+).gb",
+    # Bacterial expression — dual expression / other
     "pETDuet-1.gb", "pRSFDuet-1.gb", "pACYCDuet-1.gb",
     "pGEX-4T-1.gb", "pGEX-6P-1.gb", "pGEX-2T.gb",
     "pMAL-c5X.gb", "pMAL-p5X.gb",
     "pTrcHis A.gb", "pTrcHis B.gb",
+    "pBAD/HisB.gb", "pBAD/gIII A.gb",
+    "pRSET A.gb", "pRSET B.gb", "pRSET C.gb",
     # Mammalian expression
-    "pcDNA3.1(-).gb", "pcDNA3.gb", "pcDNA4 TO.gb",
+    "pcDNA3.1(-).gb", "pcDNA3.1(+).gb", "pcDNA3.gb", "pcDNA4 TO.gb",
+    "pcDNA3.1/V5-His A.gb", "pcDNA3.1/myc-His A.gb",
     "pCMV-Script.gb", "pCMV-LacZ.gb", "pCMV-MIR.gb",
-    # Fluorescent proteins
-    "pEGFP-N1.gb", "pEGFP-C1.gb", "EGFP.gb",
+    "pCDH-CMV-MCS-EF1-Puro.gb", "pCDH-CMV-MCS-EF1-GFP-Hygro.gb",
+    "pCW57.1.gb",
+    # Fluorescent proteins (full vectors)
+    "pEGFP-N1.gb", "pEGFP-C1.gb", "pEGFP-N3.gb",
     "DsRed2.gb", "DsRed-Express2.gb", "mCherry.gb",
-    # Lentiviral
+    # Lentiviral — transfer vectors
     "lentiCRISPR v2.gb", "lentiCas9-EGFP.gb", "lentiCas9-Blast.gb",
-    "lentiGuide-Puro.gb", "psPAX2.gb",
+    "lentiGuide-Puro.gb", "lentiGuide-Hygro.gb",
+    "pLKO.1-TRC.gb", "pLKO.1-puro.gb",
+    # Lentiviral — packaging / envelope
+    "psPAX2.gb", "pMD2.G.gb", "pLP-VSV-G.gb",
     # CRISPR
-    "pX330.gb", "pSpCas9(BB)-2A-GFP (PX458).gb",
+    "pX330.gb", "pX330-U6-Chimeric_BB-CBh-hSpCas9.gb",
+    "pSpCas9(BB)-2A-GFP (PX458).gb",
     "pSpCas9(BB)-2A-Puro (PX459) V2.0.gb",
     "pSpCas9n(BB)-2A-GFP (PX461).gb",
     "pCas-Guide-CRISPRa.gb", "pCas-Guide-CRISPRi.gb",
     # AAV
     "pAAV2-EF1a-tGFP-WPRE.gb", "pAAVS1-Puro-DNR.gb",
+    "pAAV-MCS.gb", "pAAV-CMV-hrGFP.gb",
     # Reporter
     "pGL3-Basic.gb", "pGL3-Control.gb", "pGL3-Enhancer.gb",
     "pGL4.10[luc2].gb", "pGL4.13[luc2 SV40].gb", "pGL4.23[luc2 minP].gb",
+    "pRL-TK.gb", "pRL-CMV.gb", "pRL-null.gb",
     # Gateway
     "pDONR221.gb", "pDONR201.gb", "pDONR207.gb",
     "pDEST14.gb", "pDEST15.gb", "pDEST17.gb",
+    "pDEST-EGFP.gb",
     # Plant
     "pBI121.gb", "pBI221.gb",
     "pCAMBIA1301.gb", "pCAMBIA1302.gb", "pCAMBIA2300.gb", "pCAMBIA3300.gb",
@@ -78,9 +94,9 @@ def infer_categories(name: str, features: list[str]) -> list[str]:
     # Application
     if any(x in n for x in ["pet", "pgex", "pmal", "ptrc", "prsf", "pacyc", "puc", "pbr", "psc"]):
         cats.append("bacterial")
-    if any(x in n for x in ["pcdna", "pcmv", "plenti", "pgfp", "phcmv"]):
+    if any(x in n for x in ["pcdna", "pcmv", "plenti", "pgfp", "phcmv", "pcdh"]):
         cats.append("mammalian")
-    if any(x in n for x in ["lenti", "paav", "pspax", "pvsvg"]):
+    if any(x in n for x in ["lenti", "paav", "pspax", "pvsvg", "pmd2", "plp-vsv", "plko"]):
         cats.append("viral")
     if any(x in n for x in ["pgl", "pglow", "luc"]):
         cats.append("reporter")
@@ -97,6 +113,9 @@ def infer_categories(name: str, features: list[str]) -> list[str]:
     # Expression type
     if any(x in features for x in ["T7 promoter", "T7 terminator"]):
         cats.append("expression")
+    if any(x in n for x in ["plko", "shrna", "psilencer", "pgipz", "pshag"]):
+        if "shRNA" not in cats:
+            cats.append("shRNA")
     if not cats:
         cats.append("cloning")
     return list(dict.fromkeys(cats))  # deduplicate, preserve order
@@ -137,6 +156,11 @@ def extract_key_features(record) -> list[str]:
         "GST-tag": ["gst", "glutathione s-transferase"],
         "MBP-tag": ["mbp", "maltose binding"],
         "T7 tag": ["t7 tag"],
+        "VSV-G": ["vsv-g", "vesicular stomatitis"],
+        "shRNA": ["shrna", "short hairpin"],
+        "U6 promoter": ["u6 promoter", "rnu6", "h1 promoter"],
+        "araBAD promoter": ["arabad", "pbad", "l-arabinose"],
+        "pUC ori": ["puc ori", "puc origin"],
     }
     seen = set()
     for feat in record.features:
@@ -160,7 +184,7 @@ def make_slug(name: str) -> str:
 
 # ── Plasmid selection ─────────────────────────────────────────────────────────
 
-def select_plasmids(target: int = 200) -> list[Path]:
+def select_plasmids(target: int = 300) -> list[Path]:
     all_files = list(SNAPGENE_DIR.glob("*.gb"))
     must = [SNAPGENE_DIR / m for m in MUST_INCLUDE if (SNAPGENE_DIR / m).exists()]
     must_names = {m.name for m in must}
