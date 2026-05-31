@@ -25,7 +25,7 @@ function renderChart(
 ) {
 	const dpr = window.devicePixelRatio ?? 1;
 	const logW = canvas.offsetWidth;
-	const logH = CHART_H;
+	const logH = canvas.offsetHeight || CHART_H;
 	if (logW === 0 || profile.length === 0) return;
 
 	canvas.width  = Math.round(logW * dpr);
@@ -36,7 +36,7 @@ function renderChart(
 
 	const drawW = logW - AXIS_W - PAD_R;
 	const originX = AXIS_W;
-	const originY = logH - 20; // leave room for x axis labels
+	const originY = logH - 22; // leave room for x axis labels
 
 	function yOf(gc: number) {
 		return originY - gc * (originY - 10);
@@ -259,7 +259,7 @@ export function GCPanel({ seq }: { seq: string }) {
 				) : (
 					<canvas
 						ref={canvasRef}
-						style={{ width: "100%", height: `${CHART_H}px`, display: "block" }}
+						style={{ width: "100%", height: "100%", display: "block" }}
 					/>
 				)}
 			</div>
