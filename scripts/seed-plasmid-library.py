@@ -116,6 +116,10 @@ MUST_INCLUDE = {
     "hCas9.gb", "hCas9_D10A.gb",
     # Retroviral shRNA (pSIREN-RetroQ backbone)
     "pSIREN-RetroQ.gb",
+    # Yeast two-hybrid — GAL4 binding domain (pairs with pGADT7 AD)
+    "pGBKT7.gb",
+    # Sleeping Beauty transposon system (non-viral stable integration)
+    "pSB1C3.gb", "pSB11.gb",
     # ── Yeast vectors ──────────────────────────────────────────────────────────
     # pRS series — the standard S. cerevisiae shuttle vectors (Sikorski & Hieter)
     # Centromeric (low copy, ~1-2 copies/cell):
