@@ -31,6 +31,7 @@ import type { PrimerPlotsData } from "@/components/primer-viz/primer-plots-drawe
 import { PrimerPlotsDrawer } from "@/components/primer-viz/primer-plots-drawer";
 import { DigestPanel } from "./digest-panel";
 import { EnzymePanel } from "./enzyme-panel";
+import { GCPanel } from "./gc-panel";
 import { ORFPanel } from "./orf-panel";
 import { PrimerPanel } from "./primer-panel";
 import { SearchPanel } from "./search-panel";
@@ -47,7 +48,7 @@ interface SequenceViewerWithPanelProps {
 	sequenceId?: string | null;
 }
 
-type PanelTab = "enzymes" | "primers" | "digest" | "orfs" | "search" | "ai" | "align";
+type PanelTab = "enzymes" | "primers" | "digest" | "orfs" | "search" | "ai" | "align" | "gc";
 
 const TAB_LABELS: Record<PanelTab, string> = {
 	enzymes: "Enzymes",
@@ -57,6 +58,7 @@ const TAB_LABELS: Record<PanelTab, string> = {
 	search: "Search",
 	ai: "AI",
 	align: "Align",
+	gc: "GC",
 };
 
 export function SequenceViewerWithPanel({
@@ -86,9 +88,9 @@ export function SequenceViewerWithPanel({
 	const [annotating, setAnnotating] = useState(false);
 	const annotationWorkerRef = useRef<Worker | null>(null);
 
-	// Alt+1–7: switch panel tabs
+	// Alt+1–8: switch panel tabs
 	useEffect(() => {
-		const TABS: PanelTab[] = ["enzymes", "primers", "digest", "align", "orfs", "search", "ai"];
+		const TABS: PanelTab[] = ["enzymes", "primers", "digest", "align", "orfs", "search", "ai", "gc"];
 		const handler = (e: KeyboardEvent) => {
 			if (!e.altKey) return;
 			const n = parseInt(e.key, 10);
@@ -510,7 +512,7 @@ export function SequenceViewerWithPanel({
 					<div style={{ flexShrink: 0, background: "#f5f0e8", borderBottom: "1px solid #ddd8ce" }}>
 						{[
 							["enzymes", "primers", "digest"] as PanelTab[],
-							["align", "orfs", "search", "ai"] as PanelTab[],
+							["align", "orfs", "search", "ai", "gc"] as PanelTab[],
 						].map((row, rowIdx) => (
 							<div
 								key={rowIdx}
@@ -520,7 +522,7 @@ export function SequenceViewerWithPanel({
 								}}
 							>
 								{row.map((tab, tabIdx) => {
-									const TABS: PanelTab[] = ["enzymes", "primers", "digest", "align", "orfs", "search", "ai"];
+									const TABS: PanelTab[] = ["enzymes", "primers", "digest", "align", "orfs", "search", "ai", "gc"];
 									const globalIdx = TABS.indexOf(tab) + 1;
 									return (
 									<button
@@ -597,7 +599,7 @@ export function SequenceViewerWithPanel({
 							textAlign: "right",
 						}}
 					>
-						Alt+1–7 · switch panels
+						Alt+1–8 · switch panels
 					</div>
 
 					{/* Panel content */}
@@ -661,6 +663,7 @@ export function SequenceViewerWithPanel({
 							<SearchPanel seq={parsed.seq} topology={topology} onMatches={handleSearchMatches} />
 						)}
 						{activeTab === "ai" && <AIPanel context={aiContext} />}
+					{activeTab === "gc" && <GCPanel seq={parsed.seq} />}
 					</div>
 				</aside>
 			</div>
